@@ -1,3 +1,4 @@
+open Gospel.Uast 
 open Why3
 open Ptree
 open Gospel
@@ -152,6 +153,61 @@ let mk_refine_modules info top_mod_name =
   in
   Hashtbl.iter mk_module info.Odecl.info_refinement
 
+(** Auxiliary function to partition a list of GOSPEL toplevel declarations into 
+    a left list with all the effect declarations, which will be in the form of
+    type extensions, and a right list with the rest of the program
+
+    @param eff the top level declaration which we will add to either the left or right list 
+    @result a type extension, if the declaration was an effect, marked for the left list, 
+      or a top level declaration marked for the right list.
+*)
+let is_effect d =
+  match d.sstr_desc with 
+  |Str_typext t
+    when Longident.flatten t.ptyext_path.txt = ["eff"] -> Either.Left t
+  |_ -> Either.Right d
+
+(** Turns a list of type extensions into a single complete type. 
+If the list of type extensions is empty, this function will return None
+
+@param effects the type_extension objects representing effect decleration
+@return an algebraic data type {!type eff 'a = ...} with all the user defined effects*)
+let mk_effect_type effects =
+match effects with
+|[] -> None 
+|_ -> 
+
+  let params cons =
+    match cons with 
+    |Ppxlib.Pcstr_tuple l -> 
+      List.map (fun t -> T.location t.Ppxlib.ptyp_loc, None, false, E.core_type t) l
+    |_ -> assert false
+  in
+
+  let eff_of_cons e = 
+    match e.Ppxlib.pext_kind with 
+    |Ppxlib.Pext_decl (args, Some _) -> 
+      let loc = T.location e.pext_loc in 
+      let id = T.mk_id ~id_loc:(T.location e.pext_name.loc) e.pext_name.txt in 
+      loc, id, params args
+    |_ -> assert false
+    in
+
+  let cons_list = List.flatten (List.map (fun e -> e.Ppxlib.ptyext_constructors) effects) in 
+  let eff_list = List.map eff_of_cons cons_list in 
+  let eff_type = TDalgebraic eff_list in
+  let decl = Dtype [{
+    td_loc = Loc.dummy_position;
+    td_ident = T.mk_id "eff";
+    td_params = [T.mk_id "a"];
+    td_vis = Public;
+    td_mut = false;
+    td_inv = [];
+    td_wit = [];
+    td_def = eff_type
+  }] in
+  Some (Odecl.mk_odecl Loc.dummy_position decl)
+
 let read_channel env path file c =
   if !debug then Format.eprintf "Reading file '%s'@." file;
   let mod_name =
@@ -166,7 +222,10 @@ let read_channel env path file c =
   open_module id;
   (* This is the beginning of the top module construction *)
   let info = mk_info () in
-  let f = Declaration.s_structure info f in
+  let effects, program = List.partition_map is_effect f in
+  let eff_type = mk_effect_type effects in 
+  let f = Declaration.s_structure info program in
+  let f = match eff_type with |Some d -> d::f | None -> f in
   let f = use_std_lib @ f in
   let rec pp_list pp fmt l =
     match l with

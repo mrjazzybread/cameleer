@@ -492,6 +492,7 @@ let rec term info Uast.{ spexp_desc = p_desc; spexp_loc; _ } =
         ignore exn_constructor;
         ignore expr;
         assert false (* TODO *)
+    | Sexp_handler (_, _, _) -> assert false
     | Sexp_coerce _ -> assert false (* TODO *)
     | Sexp_send _ -> assert false (* TODO *)
     | Sexp_new _ -> assert false (* TODO *)
@@ -665,6 +666,7 @@ let rec expression_desc info expr_loc expr_desc =
   | Sexp_letexception (exn_constructor, expr) ->
       let id, pty, mask = exception_constructor exn_constructor in
       mk_eexn id pty mask (expression info expr)
+  | Sexp_handler(_, _, _) -> assert false
   | Sexp_coerce _ -> assert false (* TODO *)
   | Sexp_send _ -> assert false (* TODO *)
   | Sexp_new _ -> assert false (* TODO *)

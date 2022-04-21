@@ -516,6 +516,7 @@ let s_structure, s_signature =
         let loc = T.location popen_loc in
         let fname, mname = mk_import_name_list lid in
         [ O.mk_duseimport loc [ (Qdot (fname, mname), Some mname) ] ]
+    | Uast.Str_protocol _ -> assert false
     | Uast.Str_ghost_val _ -> assert false (* TODO *)
     | Uast.Str_attribute _ -> []
     | _ -> assert false
