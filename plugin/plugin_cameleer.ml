@@ -167,7 +167,7 @@ let is_effect d =
     when Longident.flatten t.ptyext_path.txt = ["eff"] -> Either.Left t
   |_ -> Either.Right d
 
-(** Turns a list of type extensions into a single complete type. 
+(** Turns a list of type extensions into a single algebraic data type. 
 If the list of type extensions is empty, this function will return None
 
 @param effects the type_extension objects representing effect decleration
@@ -176,7 +176,9 @@ let mk_effect_type effects =
 match effects with
 |[] -> None 
 |_ -> 
-
+  (**Turns an OCaml constructor into a Why3 constructor
+      @param cons the arguments of the constructor (records not supported)
+      @result A list of parameters for an equivelent Why3 constructor *)
   let params cons =
     match cons with 
     |Ppxlib.Pcstr_tuple l -> 
@@ -184,6 +186,10 @@ match effects with
     |_ -> assert false
   in
 
+  (** Turns an effect decleration {!E : args : ... } into 
+      a Why3 constructor with the same name that receives the same arguments
+      @param e An OCaml effect, declared as a type extension
+      @return an equivelent Why3 constructor*)
   let eff_of_cons e = 
     match e.Ppxlib.pext_kind with 
     |Ppxlib.Pext_decl (args, Some _) -> 
