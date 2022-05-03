@@ -9,6 +9,30 @@ module T = Uterm
 module Tt = Tterm
 module E = Expression
 module O = Odecl
+module Set = Map.Make(String)
+
+let eff_name = "eff"
+
+
+(**auxiliary variables and functions to map effect names to the types they return*)
+let effect_types : (pty Set.t) ref = ref Set.empty
+
+let tl_ref_types : (pty Set.t) ref = ref Set.empty
+
+let map_effect e t =
+  let e = String.uncapitalize_ascii e in 
+  effect_types := Set.add e t (!effect_types)
+
+let _map_ref_type r t =
+  tl_ref_types := Set.add r t (!tl_ref_types)
+
+let get_ref_type r = 
+  Set.find r (!tl_ref_types)
+
+let get_effect_type e = 
+  Set.find e (!effect_types)
+
+
 
 let mk_const svb_list expr =
   let p = T.mk_pattern Pwild in
@@ -366,6 +390,72 @@ let subst info ctr_list =
   in
   List.fold_left mk_subst empty_subst ctr_list
 
+(**Given a protocol, creates two predicates, one that
+   contains the protocols precondition and another that contains
+   protocol's post condition. Additionally, we will also create 
+   a {!perform} function that receives an effect and returns the type
+   the effect named after the protocol returns. If the field is {!None}
+   the return type is unit. This {!perform} function's specification will consist 
+   of the protocol's pre and post condition, as well as a {!writes} clause
+with the variables modified by the protocol. Finally, the two predicates will receive the 
+performed effected, the state prior to the effect being performed and, 
+for the post condition, the state after the handler returns control to the function and the reply 
+the handler sends.
+
+  @param prot the protocol we are handling 
+  
+  @return the two predicates and the perform function*)
+let setup_protocol prot =
+  let t = get_effect_type prot.Uast.pro_name.pid_str in
+  (*gets the types of the state variables that this protocol uses by means of the writes clause*)
+  let state_types = List.map (fun id -> get_ref_type (T.preid id).id_str, T.preid id) prot.pro_writes in
+  (*creates the predicate arguments for the state variables*) 
+  let state_params = List.map (fun (t, id) -> Loc.dummy_position, Some id, false, t) state_types in 
+  let old_state_params = List.map (fun (t, id) -> Loc.dummy_position, Some {id with id_str = "old_"^ id.id_str}, false, t) state_types in 
+  (*auxiliary function to create pre and post predicates for the protocols*)
+  let mk_protocol_logic name terms params =
+    let term = List.fold_right 
+      (fun t1 t2 -> T.mk_term (Tbinop(T.term true t1, DTand ,t2))) terms (T.mk_term Ttrue)  in
+    O.mk_dlogic Loc.dummy_position None 
+      [{  ld_loc=Loc.dummy_position;
+          ld_ident= name;
+          ld_params=params;
+          ld_type = None;
+          ld_def = Some term
+          }]
+    in
+    (*madness*)
+  let effect_param = 
+    Loc.dummy_position, Some (T.mk_id "request"), false, PTtyapp(Qident (T.mk_id eff_name), [PTtyvar (T.mk_id "a")]) in
+  let reply_param = 
+    Loc.dummy_position, Some (T.mk_id "reply"), false, t in
+  let pre_name = T.mk_id ("pre_" ^ prot.pro_name.pid_str) in 
+  let post_name = T.mk_id ("post_" ^ prot.pro_name.pid_str) in
+  let perform_name = T.mk_id ("perform_" ^ prot.pro_name.pid_str) in 
+  let protocol_pre = mk_protocol_logic pre_name prot.pro_pre (effect_param::state_params)  in 
+  let protocol_post = mk_protocol_logic post_name prot.pro_post (effect_param::old_state_params@state_params@[reply_param]) in 
+  let mk_tid id = T.mk_term (Tident (Qident id)) in 
+  let mk_fcall l = 
+    let rec mk_fcall l = 
+    match l with  
+    |t1::(_::_ as xs) -> T.mk_term (Tapply (mk_fcall xs, t1))
+    |[t] -> t
+    | [] -> assert false in mk_fcall (List.rev l)
+  in 
+  let perform_pre =
+    mk_fcall ([mk_tid pre_name; mk_tid (T.mk_id "request")]@(List.map (fun x -> mk_tid (T.preid x)) prot.pro_writes)) in  
+  let perform_post =
+    mk_fcall ([mk_tid post_name; mk_tid (T.mk_id "request")]@
+    (List.map (fun x -> T.mk_term (Tat(mk_tid (T.preid x), T.mk_id Dexpr.old_label))) prot.pro_writes)@
+    (List.map (fun x -> mk_tid (T.preid x)) prot.pro_writes)@[mk_tid (T.mk_id "result")])
+     in
+  let spec = Vspec.mk_spec perform_pre (*(T.mk_term Ttrue)*) perform_post in 
+  let protocol_perfrom = Eany (
+      [effect_param], Expr.RKnone, Some t, T.mk_pattern Pwild, Ity.MaskVisible, spec) in   
+  let perform_decl = 
+    O.mk_dlet Loc.dummy_position perform_name false Expr.RKnone (E.mk_expr protocol_perfrom) in 
+  protocol_pre@protocol_post@[perform_decl]
+
 (* TODO: *)
 (* let clone_subst subst =
  *   let mk_csfsym (q1, q2) = CSfsym (q1, q2) in
@@ -516,7 +606,7 @@ let s_structure, s_signature =
         let loc = T.location popen_loc in
         let fname, mname = mk_import_name_list lid in
         [ O.mk_duseimport loc [ (Qdot (fname, mname), Some mname) ] ]
-    | Uast.Str_protocol _ -> assert false
+    | Uast.Str_protocol p -> setup_protocol p
     | Uast.Str_ghost_val _ -> assert false (* TODO *)
     | Uast.Str_attribute _ -> []
     | _ -> assert false

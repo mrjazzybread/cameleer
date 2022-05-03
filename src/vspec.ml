@@ -85,6 +85,20 @@ let vspec spec =
     sp_partial = false;
   }
 
+let mk_spec pre post = 
+  {
+    sp_pre = [pre];
+    sp_post = [Loc.dummy_position, [T.mk_pattern (Pvar (T.mk_id "result")), post]];
+    sp_xpost = [];
+    sp_reads = [];
+    sp_writes = [];
+    sp_alias = [];
+    sp_variant = [];
+    sp_checkrw = false;
+    sp_diverge = false;
+    sp_partial = false;
+  }
+
 let fun_spec spec =
   {
     sp_pre = List.map (T.term false) spec.Uast.fun_req;

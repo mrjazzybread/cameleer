@@ -167,6 +167,29 @@ let is_effect d =
     when Longident.flatten t.ptyext_path.txt = ["eff"] -> Either.Left t
   |_ -> Either.Right d
 
+(**Turns an OCaml constructor into a Why3 constructor
+      @param cons the arguments of the constructor (records not supported)
+      @result A list of parameters for an equivelent Why3 constructor *)
+let params cons =
+  match cons with 
+  |Ppxlib.Pcstr_tuple l -> 
+    List.map (fun t -> T.location t.Ppxlib.ptyp_loc, None, false, E.core_type t) l
+  |_ -> assert false
+
+(** Turns an effect decleration {!E of t1 * t2 * ... : ... } into 
+    a Why3 constructor with the same name that receives arguments of type {!t1}, {!t2} ...
+    @param e An OCaml effect, declared as a type extension
+    @return an equivelent Why3 constructor*)
+let eff_of_cons e = 
+  match e.Ppxlib.pext_kind with 
+  |Ppxlib.Pext_decl (args, Some ({ptyp_desc = Ptyp_constr (_, [t]);_})) ->
+    let () = Declaration.map_effect e.Ppxlib.pext_name.txt (E.core_type t) in
+    let loc = T.location e.pext_loc in 
+    let id = T.mk_id ~id_loc:(T.location e.pext_name.loc) e.pext_name.txt in 
+    loc, id, params args
+  |_ -> assert false
+
+
 (** Turns a list of type extensions into a single algebraic data type. 
 If the list of type extensions is empty, this function will return None
 
@@ -175,36 +198,13 @@ If the list of type extensions is empty, this function will return None
 let mk_effect_type effects =
 match effects with
 |[] -> None 
-|_ -> 
-  (**Turns an OCaml constructor into a Why3 constructor
-      @param cons the arguments of the constructor (records not supported)
-      @result A list of parameters for an equivelent Why3 constructor *)
-  let params cons =
-    match cons with 
-    |Ppxlib.Pcstr_tuple l -> 
-      List.map (fun t -> T.location t.Ppxlib.ptyp_loc, None, false, E.core_type t) l
-    |_ -> assert false
-  in
-
-  (** Turns an effect decleration {!E : args : ... } into 
-      a Why3 constructor with the same name that receives the same arguments
-      @param e An OCaml effect, declared as a type extension
-      @return an equivelent Why3 constructor*)
-  let eff_of_cons e = 
-    match e.Ppxlib.pext_kind with 
-    |Ppxlib.Pext_decl (args, Some _) -> 
-      let loc = T.location e.pext_loc in 
-      let id = T.mk_id ~id_loc:(T.location e.pext_name.loc) e.pext_name.txt in 
-      loc, id, params args
-    |_ -> assert false
-    in
-
+|_ ->
   let cons_list = List.flatten (List.map (fun e -> e.Ppxlib.ptyext_constructors) effects) in 
   let eff_list = List.map eff_of_cons cons_list in 
   let eff_type = TDalgebraic eff_list in
   let decl = Dtype [{
     td_loc = Loc.dummy_position;
-    td_ident = T.mk_id "eff";
+    td_ident = T.mk_id Declaration.eff_name;
     td_params = [T.mk_id "a"];
     td_vis = Public;
     td_mut = false;

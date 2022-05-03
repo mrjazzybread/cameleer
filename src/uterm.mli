@@ -19,4 +19,4 @@ val qualid : Uast.qualid -> Ptree.qualid
 val pty : Uast.pty -> Ptree.pty
 val ty : Ttypes.ty -> Ptree.pty
 val pattern : Uast.pattern -> Ptree.pattern
-val term : bool -> Uast.term -> Ptree.term
+val term : ?in_pred:bool -> bool -> Uast.term -> Ptree.term
