@@ -186,7 +186,8 @@ let eff_of_cons e =
     let () = Declaration.map_effect e.Ppxlib.pext_name.txt (E.core_type t) in
     let loc = T.location e.pext_loc in 
     let id = T.mk_id ~id_loc:(T.location e.pext_name.loc) e.pext_name.txt in 
-    loc, id, params args
+    let tuple_of l = List.map E.core_type (match l with | Ppxlib.Pcstr_tuple l -> l|_-> assert false) in 
+    (loc, id, params args), tuple_of args
   |_ -> assert false
 
 
@@ -201,18 +202,23 @@ match effects with
 |_ ->
   let cons_list = List.flatten (List.map (fun e -> e.Ppxlib.ptyext_constructors) effects) in 
   let eff_list = List.map eff_of_cons cons_list in 
-  let eff_type = TDalgebraic eff_list in
-  let decl = Dtype [{
+  let eff_type = TDalgebraic (List.map (fun (x, _) -> x) eff_list) in
+  let mk_decl name params eff_type = Odecl.mk_dtype Loc.dummy_position
+    [{
     td_loc = Loc.dummy_position;
-    td_ident = T.mk_id Declaration.eff_name;
-    td_params = [T.mk_id "a"];
+    td_ident = T.mk_id name;
+    td_params = params;
     td_vis = Public;
     td_mut = false;
     td_inv = [];
     td_wit = [];
     td_def = eff_type
   }] in
-  Some (Odecl.mk_odecl Loc.dummy_position decl)
+  let param_types = List.map (fun ((_, id, _), args) -> 
+      mk_decl ("param_" ^ id.id_str) [] (TDalias (PTtuple args))) eff_list in
+  let decl = mk_decl Declaration.eff_name [T.mk_id "a"] eff_type in
+  Some (param_types, decl)
+
 
 let read_channel env path file c =
   if !debug then Format.eprintf "Reading file '%s'@." file;
@@ -231,7 +237,7 @@ let read_channel env path file c =
   let effects, program = List.partition_map is_effect f in
   let eff_type = mk_effect_type effects in 
   let f = Declaration.s_structure info program in
-  let f = match eff_type with |Some d -> d::f | None -> f in
+  let f = match eff_type with |Some (p, eff_t)  -> eff_t::(p@f) | None -> f in
   let f = use_std_lib @ f in
   let rec pp_list pp fmt l =
     match l with

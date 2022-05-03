@@ -20,7 +20,6 @@ let effect_types : (pty Set.t) ref = ref Set.empty
 let tl_ref_types : (pty Set.t) ref = ref Set.empty
 
 let map_effect e t =
-  let e = String.uncapitalize_ascii e in 
   effect_types := Set.add e t (!effect_types)
 
 let _map_ref_type r t =
@@ -406,13 +405,20 @@ the handler sends.
   
   @return the two predicates and the perform function*)
 let setup_protocol prot =
-  let t = get_effect_type prot.Uast.pro_name.pid_str in
+  let p_name = match prot.Uast.pro_name with |Qpreid id -> id.pid_str |_-> assert false in 
+  let t = get_effect_type p_name in
   (*gets the types of the state variables that this protocol uses by means of the writes clause*)
   let state_types = List.map (fun id -> get_ref_type (T.preid id).id_str, T.preid id) prot.pro_writes in
   (*creates the predicate arguments for the state variables*) 
   let state_params = List.map (fun (t, id) -> Loc.dummy_position, Some id, false, t) state_types in 
   let old_state_params = List.map (fun (t, id) -> Loc.dummy_position, Some {id with id_str = "old_"^ id.id_str}, false, t) state_types in 
-  (*auxiliary function to create pre and post predicates for the protocols*)
+  let mk_tid id = T.mk_term (Tident (Qident id)) in 
+  (*creates a term with the following sturcture {!match request with |prot_name a1 a2 -> t |_ -> false end}*)
+  let mk_match t =
+    let valid_pat = T.mk_pattern (Ptuple (List.map T.pattern prot.pro_args)) in
+    let branch = [valid_pat, t] in
+    T.mk_term (Tcase (mk_tid (T.mk_id "request"), branch)) in
+  (*auxiliary function to create pre and post predicates for the protocol*)
   let mk_protocol_logic name terms params =
     let term = List.fold_right 
       (fun t1 t2 -> T.mk_term (Tbinop(T.term true t1, DTand ,t2))) terms (T.mk_term Ttrue)  in
@@ -421,20 +427,23 @@ let setup_protocol prot =
           ld_ident= name;
           ld_params=params;
           ld_type = None;
-          ld_def = Some term
+          ld_def = Some (mk_match term)
           }]
     in
-    (*madness*)
   let effect_param = 
-    Loc.dummy_position, Some (T.mk_id "request"), false, PTtyapp(Qident (T.mk_id eff_name), [PTtyvar (T.mk_id "a")]) in
+    Loc.dummy_position, Some (T.mk_id "request"), false, 
+    PTtyapp(Qident (T.mk_id ("param_" ^ p_name)), []) in
   let reply_param = 
     Loc.dummy_position, Some (T.mk_id "reply"), false, t in
-  let pre_name = T.mk_id ("pre_" ^ prot.pro_name.pid_str) in 
-  let post_name = T.mk_id ("post_" ^ prot.pro_name.pid_str) in
-  let perform_name = T.mk_id ("perform_" ^ prot.pro_name.pid_str) in 
-  let protocol_pre = mk_protocol_logic pre_name prot.pro_pre (effect_param::state_params)  in 
-  let protocol_post = mk_protocol_logic post_name prot.pro_post (effect_param::old_state_params@state_params@[reply_param]) in 
-  let mk_tid id = T.mk_term (Tident (Qident id)) in 
+  let pre_name = T.mk_id ("pre_" ^ p_name) in 
+  let post_name = T.mk_id ("post_" ^ p_name) in
+  let perform_name = T.mk_id ("perform_" ^ p_name) in 
+  let protocol_pre = 
+    mk_protocol_logic pre_name prot.pro_pre (effect_param::state_params)  in 
+  let protocol_post = 
+    mk_protocol_logic post_name prot.pro_post (effect_param::old_state_params@state_params@[reply_param]) in 
+  (*given a list of terms, the first being a function and the following its arguments,
+    creates an application of that function*)
   let mk_fcall l = 
     let rec mk_fcall l = 
     match l with  
@@ -449,7 +458,7 @@ let setup_protocol prot =
     (List.map (fun x -> T.mk_term (Tat(mk_tid (T.preid x), T.mk_id Dexpr.old_label))) prot.pro_writes)@
     (List.map (fun x -> mk_tid (T.preid x)) prot.pro_writes)@[mk_tid (T.mk_id "result")])
      in
-  let spec = Vspec.mk_spec perform_pre (*(T.mk_term Ttrue)*) perform_post in 
+  let spec = Vspec.mk_spec perform_pre perform_post in 
   let protocol_perfrom = Eany (
       [effect_param], Expr.RKnone, Some t, T.mk_pattern Pwild, Ity.MaskVisible, spec) in   
   let perform_decl = 
