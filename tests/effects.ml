@@ -1,5 +1,7 @@
-type _ eff += Div_by_zero : int eff
+(*type 'a eff = ..*)
 
-(*@ protocol Div_by_zero : 
+type _ eff += Div_by_zero : int -> int eff
+
+(*@ protocol Div_by_zero x : 
    requires false
    ensures true*)
