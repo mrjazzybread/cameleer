@@ -1,7 +1,13 @@
 (*type 'a eff = ..*)
 
-type _ eff += Div_by_zero : int * int -> int eff
+type _ eff += Div_by_zero : int eff
 
-(*@ protocol Div_by_zero x y : 
+type exp = Const of int | Div of exp * exp
+
+
+let curr_exp = ref (Const 0) 
+
+(*@ protocol Div_by_zero : 
    requires false
    ensures true*)
+

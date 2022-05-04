@@ -220,6 +220,23 @@ match effects with
   Some (param_types, decl)
 
 
+let top_level f = 
+  let rest, dlets = List.partition_map (fun d -> 
+    match d with
+    |Odecl.Odecl (_, Dlet(id, g, Expr.RKnone, e)) -> Either.Right (id, g, e) 
+    |_ -> Either.Left d 
+    ) f in 
+  let convert (id, g, e1) e2 =
+    E.mk_expr (
+      Elet(id, g, Expr.RKnone, e1, e2)
+    ) in 
+  let rec mk_big_salame l = 
+    match l with 
+    | x::(_::_ as t) -> convert x (mk_big_salame t)
+    |[x] -> convert x (E.mk_expr (Etuple []))
+    |[] -> assert false 
+  in rest@[Odecl.mk_dlet Loc.dummy_position (T.mk_id "top_level") false Expr.RKnone (mk_big_salame dlets)]
+
 let read_channel env path file c =
   if !debug then Format.eprintf "Reading file '%s'@." file;
   let mod_name =
@@ -239,6 +256,7 @@ let read_channel env path file c =
   let f = Declaration.s_structure info program in
   let f = match eff_type with |Some (p, eff_t)  -> eff_t::(p@f) | None -> f in
   let f = use_std_lib @ f in
+  let f = top_level f in
   let rec pp_list pp fmt l =
     match l with
     | [] -> ()

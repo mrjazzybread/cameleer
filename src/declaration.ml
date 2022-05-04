@@ -33,7 +33,7 @@ let get_effect_type e =
 
 
 
-let mk_const svb_list expr =
+let _mk_const svb_list expr =
   let p = T.mk_pattern Pwild in
   let mk_spec acc Uast.{ spvb_vspec; _ } =
     let s = match spvb_vspec with None -> empty_spec | Some s -> vspec s in
@@ -575,7 +575,7 @@ let s_structure, s_signature =
   and s_structure_item info Uast.{ sstr_desc; sstr_loc } =
     s_structure_item_desc info (T.location sstr_loc) sstr_desc
   and s_structure_item_desc info loc str_item_desc =
-    let is_const_svb Uast.{ spvb_expr; _ } =
+    let _is_const_svb Uast.{ spvb_expr; _ } =
       match spvb_expr.spexp_desc with
       | Sexp_function _ | Sexp_fun _ -> false
       (*FIXME: this is not all there is to test. One might have a complex
@@ -601,9 +601,9 @@ let s_structure, s_signature =
         | rs_kind, [ (id, expr) ] ->
             let ghost = is_ghost_let svb_list in
             let rs_kind, expr =
-              if List.exists is_const_svb svb_list then
+              (*if List.exists is_const_svb svb_list then
                 (Expr.RKfunc, mk_const svb_list expr)
-              else (rs_kind, expr)
+              else *)  (rs_kind, expr)
             in
             [ O.mk_odecl loc (Dlet (id, ghost, rs_kind, expr)) ]
         | _ -> assert false (* no multiple bindings here *))
