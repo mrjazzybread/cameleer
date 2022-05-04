@@ -22,7 +22,7 @@ let tl_ref_types : (pty Set.t) ref = ref Set.empty
 let map_effect e t =
   effect_types := Set.add e t (!effect_types)
 
-let _map_ref_type r t =
+let map_ref_type r t =
   tl_ref_types := Set.add r t (!tl_ref_types)
 
 let get_ref_type r = 
@@ -431,6 +431,10 @@ let mk_fcall l =
   |[t] -> t
   | [] -> assert false in mk_fcall (List.rev l)
     
+let mk_dref id =
+  let id = T.preid id in 
+  T.mk_term (Tapply (T.mk_term (Tident (Qident (T.mk_id (Ident.op_prefix "!")))),
+  T.mk_term (Tident (Qident id)) ))
 
 (**Given a protocol, creates two predicates, one that
    contains the protocols precondition and another that contains
@@ -484,14 +488,14 @@ let setup_protocol prot =
   let protocol_post = 
     mk_protocol_logic post_name prot.pro_args prot.pro_post (effect_param::old_state_params@state_params@[reply_param]) in 
   let perform_pre =
-    mk_fcall ([mk_tid pre_name; mk_tid (T.mk_id "request")]@(List.map (fun x -> mk_tid (T.preid x)) prot.pro_writes)) in  
+    mk_fcall ([mk_tid pre_name; mk_tid (T.mk_id "request")]@(List.map (fun x -> mk_dref x) prot.pro_writes)) in  
   let perform_post =
     mk_fcall ([mk_tid post_name; mk_tid (T.mk_id "request")]@
-    (List.map (fun x -> T.mk_term (Tat(mk_tid (T.preid x), T.mk_id Dexpr.old_label))) prot.pro_writes)@
-    (List.map (fun x -> mk_tid (T.preid x)) prot.pro_writes)@[mk_tid (T.mk_id "result")])
+    (List.map (fun x -> T.mk_term (Tat(mk_dref x, T.mk_id Dexpr.old_label))) prot.pro_writes)@
+    (List.map (fun x -> mk_dref x) prot.pro_writes)@[mk_tid (T.mk_id "result")])
      in
   (*definition of the abstract perform function*)
-  let spec = Vspec.mk_spec perform_pre perform_post in 
+  let spec = Vspec.mk_spec perform_pre perform_post (List.map (fun s -> T.mk_term (Tident (Qident (T.preid s)))) prot.pro_writes) in 
   let protocol_perfrom = Eany (
       [effect_param], Expr.RKnone, Some t, T.mk_pattern Pwild, Ity.MaskVisible, spec) in   
   let perform_decl = 
@@ -578,7 +582,7 @@ let s_structure, s_signature =
     let _is_const_svb Uast.{ spvb_expr; _ } =
       match spvb_expr.spexp_desc with
       | Sexp_function _ | Sexp_fun _ -> false
-      (*FIXME: this is not all there is to test. One might have a complex
+      (*FIXME: this is not all there is to tes,t. One might have a complex
         expression that returns a function; in that case, I will mark it as
         a constant. *)
       | _ -> true

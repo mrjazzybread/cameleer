@@ -103,9 +103,9 @@ let rm_old t =
       Tident (Qident {id with id_str="old_" ^id.id_str})
   |_ -> assert false 
 
-let is_deref t = 
-  match t.Uast.term_desc with 
-  |Uast.Tpreid (Uast.Qpreid {pid_str = "(!)";_}) -> true 
+let is_deref q = 
+  match q with 
+  |Uast.Qpreid {pid_str;_} -> pid_str = prefix "!" 
   |_ -> false
 
   let rec term ?(in_pred=false) in_post Uast.{ term_desc = t_desc; term_loc } =
@@ -127,10 +127,11 @@ let is_deref t =
     | Uast.Tfalse -> Tfalse
     | Uast.Tconst c -> Tconst (constant c)
     | Uast.Tpreid id -> Tident (qualid id)
-    | Uast.Tidapp (q, tl) -> Tidapp (qualid q, List.map (term ~in_pred in_post) tl)
+    | Uast.Tidapp (q, [t]) when is_deref q -> 
+      (term ~in_pred in_post t).term_desc
+    | Uast.Tidapp(q, tl) -> Tidapp (qualid q, List.map (term ~in_pred in_post) tl)
     | Uast.Tfield (t, q) -> Tidapp (qualid q, [ term ~in_pred in_post t ])
     | Uast.Tapply (t1, t2) -> 
-      if is_deref t1 then (term ~in_pred in_post t2).term_desc else 
       Tapply (term ~in_pred in_post t1, term ~in_pred in_post t2)
     | Uast.Tnot t -> Tnot (term ~in_pred in_post t)
     | Uast.Tattr (a, t) -> Tattr (attr a, term ~in_pred in_post t)

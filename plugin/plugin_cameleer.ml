@@ -22,7 +22,7 @@ let use_std_lib =
   let use_stdlib =
     Odecl.mk_duseimport dummy_pos ~import:false [ (stdlib, None) ]
   in
-  [ use_stdlib ]
+  [ use_stdlib; Odecl.mk_duseimport dummy_pos ~import:false [Qdot (Qident (T.mk_id "ref"), T.mk_id "Ref"), None] ]
 
 let mk_info () =
   let info = Odecl.empty_info () in
@@ -237,6 +237,16 @@ let top_level f =
     |[] -> assert false 
   in rest@[Odecl.mk_dlet Loc.dummy_position (T.mk_id "top_level") false Expr.RKnone (mk_big_salame dlets)]
 
+let add_state_var d =
+  match d.sstr_desc with 
+  |Uast.Str_value(Nonrecursive, 
+  [{spvb_pat = {ppat_desc = Ppat_constraint( {ppat_desc = Ppat_var v;_} , t);_};_}]) ->  
+    begin match t.ptyp_desc with 
+    |Ptyp_poly(_, {ptyp_desc=Ptyp_constr(id, [t]);_}) when Longident.flatten id.txt = ["ref"] -> 
+        Declaration.map_ref_type (v.txt) (E.core_type t)
+    |_ -> () end  
+  |_ -> ()
+
 let read_channel env path file c =
   if !debug then Format.eprintf "Reading file '%s'@." file;
   let mod_name =
@@ -252,6 +262,7 @@ let read_channel env path file c =
   (* This is the beginning of the top module construction *)
   let info = mk_info () in
   let effects, program = List.partition_map is_effect f in
+  let () = List.iter add_state_var program in
   let eff_type = mk_effect_type effects in 
   let f = Declaration.s_structure info program in
   let f = match eff_type with |Some (p, eff_t)  -> eff_t::(p@f) | None -> f in

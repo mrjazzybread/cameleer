@@ -85,13 +85,13 @@ let vspec spec =
     sp_partial = false;
   }
 
-let mk_spec pre post = 
+let mk_spec pre post w = 
   {
     sp_pre = [pre];
     sp_post = [Loc.dummy_position, [T.mk_pattern (Pvar (T.mk_id "result")), post]];
     sp_xpost = [];
     sp_reads = [];
-    sp_writes = [];
+    sp_writes = w;
     sp_alias = [];
     sp_variant = [];
     sp_checkrw = false;
