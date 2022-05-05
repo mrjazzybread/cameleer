@@ -353,6 +353,11 @@ let exception_constructor exn_construct =
   (id_exn, pty, Ity.MaskVisible)
 (* TODO: account for a different mask *)
 
+let is_perform s =
+  match s.Uast.spexp_desc with 
+  |Uast.Sexp_ident {txt=Lident "perform";_} -> true
+  |_ -> false
+
 let rec term info Uast.{ spexp_desc = p_desc; spexp_loc; _ } =
   let term_loc = T.location spexp_loc in
   let arg_term (_, t) = term info t in
@@ -587,6 +592,19 @@ let rec expression_desc info expr_loc expr_desc =
       let binder, binder_info = binder_of_pattern info pat in
       let expr_fun = special_binder (expression info expr_fun) binder_info in
       mk_efun_visible [ binder ] None spec expr_fun
+  | Uast.Sexp_apply (s, [_,e]) when is_perform s -> 
+    begin 
+      match e.Uast.spexp_desc with 
+      |Uast.Sexp_construct ({txt = Lident s;_}, arg) -> 
+        let p = Eident (Qident (T.mk_id ("perform_"^s))) in 
+        let arg = begin match arg with 
+          |None -> mk_expr (Etuple [])
+          |Some ({spexp_desc =Uast.Sexp_tuple _;_} as t) -> expression info t
+          |Some e-> mk_expr (Etuple [expression info e])
+          end in 
+        Eapply(mk_expr p, arg)
+      |_ -> assert false 
+    end
   | Uast.Sexp_apply (s, [ arg1; arg2 ]) when is_and s.spexp_desc ->
       Eand (arg_expr arg1, arg_expr arg2)
   | Uast.Sexp_apply (s, [ arg1; arg2 ]) when is_or s.spexp_desc ->

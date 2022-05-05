@@ -17,10 +17,22 @@ match exp with
 
 let curr_exp : exp ref = ref (Const 0) 
 
-
-
 (*@ protocol Div_by_zero : 
    requires right_zero (!curr_exp)
    ensures !curr_exp = Const reply
    modifies curr_exp
   *)
+let rec eval e = 
+   match e with 
+   |Const n -> curr_exp:=e; n 
+   |Div(e1, e2) -> 
+      let eval_l = eval e1 in 
+      let l = !curr_exp in 
+      let eval_r = eval e2 in 
+      curr_exp:= Div(l, !curr_exp);
+      if eval_r = 0 
+         then perform Div_by_zero
+         else eval_l / eval_r
+(*@
+   ensures eval_ind (!curr_exp) = result
+   variant e*)

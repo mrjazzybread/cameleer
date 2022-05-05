@@ -105,7 +105,7 @@ let rm_old t =
 
 let is_deref q = 
   match q with 
-  |Uast.Qpreid {pid_str;_} -> pid_str = prefix "!" 
+  |Uast.Qpreid {pid_str;_} -> print_endline "wow"; pid_str = prefix "!"
   |_ -> false
 
   let rec term ?(in_pred=false) in_post Uast.{ term_desc = t_desc; term_loc } =
@@ -120,14 +120,14 @@ let is_deref q =
     | Uast.Tiff -> D.DTiff
   in
   let attr a = ATstr (Why3.Ident.create_attribute a) in
-  let pat_term (pat, t) = (pattern pat, term in_post t) in
-  let qualid_term (q, t) = (qualid q, term in_post t) in
+  let pat_term (pat, t) = (pattern pat, term ~in_pred in_post t) in
+  let qualid_term (q, t) = (qualid q, term ~in_pred in_post t) in
   let term_desc = function
     | Uast.Ttrue -> Ttrue
     | Uast.Tfalse -> Tfalse
     | Uast.Tconst c -> Tconst (constant c)
     | Uast.Tpreid id -> Tident (qualid id)
-    | Uast.Tidapp (q, [t]) when is_deref q -> 
+    | Uast.Tidapp (q, [t]) when is_deref q && in_pred -> 
       (term ~in_pred in_post t).term_desc
     | Uast.Tidapp(q, tl) -> Tidapp (qualid q, List.map (term ~in_pred in_post) tl)
     | Uast.Tfield (t, q) -> Tidapp (qualid q, [ term ~in_pred in_post t ])
@@ -138,7 +138,7 @@ let is_deref q =
     | Uast.Tcast (t, ty) -> Tcast (term ~in_pred in_post t, pty ty)
     | Uast.Ttuple t_list -> Ttuple (List.map (term ~in_pred in_post) t_list)
     | Uast.Trecord q_t_list -> Trecord (List.map qualid_term q_t_list)
-    | Uast.Tscope (q, t) -> Tscope (qualid q, term in_post t)
+    | Uast.Tscope (q, t) -> Tscope (qualid q, term ~in_pred in_post t)
     | Uast.Tcase (t, pt_list) ->
         Tcase (term ~in_pred in_post t, List.map pat_term pt_list)
     | Uast.Tlet (id, t1, t2) -> Tlet (preid id, term ~in_pred in_post t1, term ~in_pred in_post t2)
@@ -149,7 +149,7 @@ let is_deref q =
     | Uast.Told t ->
         if in_pred then rm_old (term ~in_pred in_post t).term_desc else
         let lbl = if in_post then Dexpr.old_label else "'Old" in
-        Tat (term in_post t, mk_id ~id_loc:term_loc lbl)
+        Tat (term ~in_pred in_post t, mk_id ~id_loc:term_loc lbl)
     | Uast.Tif (t1, t2, t3) ->
         Tif (term ~in_pred in_post t1, term ~in_pred in_post t2, term ~in_pred in_post t3)
     | Uast.Tupdate (t, q_t_list) ->

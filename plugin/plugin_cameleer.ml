@@ -220,7 +220,7 @@ match effects with
   Some (param_types, decl)
 
 
-let top_level f = 
+let _top_level f = 
   let rest, dlets = List.partition_map (fun d -> 
     match d with
     |Odecl.Odecl (_, Dlet(id, g, Expr.RKnone, e)) -> Either.Right (id, g, e) 
@@ -267,7 +267,7 @@ let read_channel env path file c =
   let f = Declaration.s_structure info program in
   let f = match eff_type with |Some (p, eff_t)  -> eff_t::(p@f) | None -> f in
   let f = use_std_lib @ f in
-  let f = top_level f in
+  (*let f = top_level f in*)
   let rec pp_list pp fmt l =
     match l with
     | [] -> ()

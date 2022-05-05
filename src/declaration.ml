@@ -401,7 +401,7 @@ let mk_protocol_logic name args terms params =
     T.mk_term (Tcase (mk_tid (T.mk_id "request"), branch)) in
 
   let term = List.fold_right 
-    (fun t1 t2 -> T.mk_term (Tbinop(T.term true t1, DTand ,t2))) terms (T.mk_term Ttrue)  in
+    (fun t1 t2 -> T.mk_term (Tbinop(T.term ~in_pred:true true t1, DTand ,t2))) terms (T.mk_term Ttrue)  in
   O.mk_dlogic Loc.dummy_position None 
     [{  ld_loc=Loc.dummy_position;
         ld_ident= name;
@@ -495,7 +495,7 @@ let setup_protocol prot =
     (List.map (fun x -> mk_dref x) prot.pro_writes)@[mk_tid (T.mk_id "result")])
      in
   (*definition of the abstract perform function*)
-  let spec = Vspec.mk_spec perform_pre perform_post (List.map (fun s -> T.mk_term (Tident (Qident (T.preid s)))) prot.pro_writes) in 
+  let spec = Vspec.mk_spec perform_pre perform_post (List.map (fun s -> mk_tid (T.preid s)) prot.pro_writes) in 
   let protocol_perfrom = Eany (
       [effect_param], Expr.RKnone, Some t, T.mk_pattern Pwild, Ity.MaskVisible, spec) in   
   let perform_decl = 
