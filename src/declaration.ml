@@ -417,14 +417,6 @@ let mk_protocol_logic name args terms params =
 let mk_param id t =
   Loc.dummy_position, Some id, false, t
 
-let mk_binder id t =
-  Loc.dummy_position, Some id, false, Some t
-
-let mk_var n =
-  E.mk_expr (Eident (Qident (T.mk_id ("x" ^ (string_of_int n)))))
-
-let mk_pvar n =
-    T.mk_pattern (Pvar (T.mk_id ("x" ^ (string_of_int n))))
   
 (*given a list of terms, the first being a function and the following its arguments,
     creates an application of that function*)
@@ -462,12 +454,8 @@ let setup_protocol prot =
   let post_name = T.mk_id ("post_" ^ p_name) in
   let perform_name = T.mk_id ("perform_" ^ p_name) in 
   let param_name = Qident (T.mk_id ("param_" ^ p_name)) in
-  let f_name = T.mk_id (String.uncapitalize_ascii p_name) in 
   (*effect return type*)
   let t = get_effect_type p_name in
-  let p_name = T.mk_id p_name in
-  (*type of the effect (effect t where t is its return type)*)
-  let eff_type = PTtyapp (Qident (T.mk_id eff_name), [t]) in
   (*gets the types of the state variables that this protocol uses by means of the writes clause*)
   let state_types = List.map (fun id -> get_ref_type (T.preid id).id_str, T.preid id) prot.pro_writes in
   (*creates the predicate arguments for the state variables*) 
@@ -476,16 +464,7 @@ let setup_protocol prot =
   let reply_param = mk_param (T.mk_id "reply") t in
   let eff_param_type = PTtyapp(param_name, []) in
   let effect_param = mk_param (T.mk_id "request") eff_param_type in
-  
-  (*definition of function that creates the effect*)
-  let cons_args = List.init (List.length prot.pro_args) (fun n -> mk_var n) in 
-  let eff_cons = E.mk_expr (Eidapp (Qident p_name, cons_args)) in
-  let cons_pat = T.mk_pattern (Ptuple (List.init (List.length prot.pro_args) (fun n -> mk_pvar n))) in
-  let f_body = 
-    E.mk_expr (Ematch (E.mk_expr (Eident (Qident (T.mk_id "p"))), [cons_pat, eff_cons], [])) in
-  let f = 
-    E.mk_expr (Efun([mk_binder (T.mk_id "p") eff_param_type], Some eff_type, T.mk_pattern Pwild, Ity.MaskVisible,  Vspec.empty_spec, f_body)) in
-  let f_decl = O.mk_dlet Loc.dummy_position f_name false Expr.RKfunc f in
+ 
   (*definition of the predicates containing the pre and post conditions*)
   let protocol_pre = 
     mk_protocol_logic pre_name prot.pro_args prot.pro_pre (effect_param::state_params)  in 
@@ -504,7 +483,7 @@ let setup_protocol prot =
       [effect_param], Expr.RKnone, Some t, T.mk_pattern Pwild, Ity.MaskVisible, spec) in   
   let perform_decl = 
     O.mk_dlet Loc.dummy_position perform_name false Expr.RKnone (E.mk_expr protocol_perfrom) in 
-  f_decl::protocol_pre@protocol_post@[perform_decl]
+  protocol_pre@protocol_post@[perform_decl]
 (*
 let mk_effect_return t = 
   PTtyapp (Qident (T.mk_id "eff_return"), [])

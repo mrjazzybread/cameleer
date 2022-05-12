@@ -173,7 +173,7 @@ let is_effect d =
 let params cons =
   match cons with 
   |Ppxlib.Pcstr_tuple l -> 
-    List.map (fun t -> T.location t.Ppxlib.ptyp_loc, None, false, E.core_type t) l
+    [Loc.dummy_position, None, false, PTtuple (List.map (fun t -> E.core_type t) l)]
   |_ -> assert false
 
 (** Turns an effect decleration {!E of t1 * t2 * ... : ... } into 
@@ -216,7 +216,7 @@ match effects with
   }] in
   let param_types = List.map (fun ((_, id, _), args) -> 
       mk_decl ("param_" ^ id.id_str) [] (TDalias (PTtuple args))) eff_list in
-  let decl = mk_decl Declaration.eff_name [T.mk_id "a"] eff_type in
+  let decl = mk_decl Declaration.eff_name [] eff_type in
   Some (param_types, decl)
 
 
