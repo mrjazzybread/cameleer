@@ -182,7 +182,7 @@ let params cons =
     @return an equivelent Why3 constructor*)
 let eff_of_cons e = 
   match e.Ppxlib.pext_kind with 
-  |Ppxlib.Pext_decl (args, Some ({ptyp_desc = Ptyp_constr (_, [t]);_})) ->
+  |Ppxlib.Pext_decl (_, args, Some ({ptyp_desc = Ptyp_constr (_, [t]);_})) ->
     let () = Declaration.map_effect e.Ppxlib.pext_name.txt (E.core_type t) in
     let loc = T.location e.pext_loc in 
     let id = T.mk_id ~id_loc:(T.location e.pext_name.loc) e.pext_name.txt in 
@@ -211,7 +211,7 @@ match effects with
     td_vis = Public;
     td_mut = false;
     td_inv = [];
-    td_wit = [];
+    td_wit = None;
     td_def = eff_type
   }] in
   let param_types = List.map (fun ((_, id, _), args) -> 
@@ -277,7 +277,7 @@ let read_channel env path file c =
   in
   let rec pp_decl fmt d =
     match d with
-    | Odecl.Odecl (_loc, d) -> Format.fprintf fmt "%a@." Mlw_printer.pp_decl d
+    | Odecl.Odecl (_loc, d) -> Format.fprintf fmt "%a@." (Mlw_printer.pp_decl ~attr:true) d
     | Odecl.Omodule (_loc, id, dl) ->
         Format.eprintf "@[<hv 2>scope %s@\n%a@]@\nend@." id.id_str
           (pp_list pp_decl) dl

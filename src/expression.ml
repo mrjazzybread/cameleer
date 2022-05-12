@@ -7,6 +7,17 @@ open Why3ocaml_driver
 module T = Uterm
 module S = Vspec
 module P = Parsetree
+module Set = Stdlib.Set.Make(String)
+
+let performed_effects : ((Set.t) ref) = ref Set.empty
+
+let add_effect e =
+  performed_effects := Set.add e (!performed_effects)
+
+let reset () = 
+  performed_effects := Set.empty
+
+let get_effects ()  = Set.elements (!performed_effects)
 
 let rec string_of_longident = function
   | Longident.Lident s -> s
@@ -62,6 +73,7 @@ let mk_pas ?(ghost = false) pat id = Pas (pat, id, ghost)
 let mk_expr ?(expr_loc = T.dummy_loc) expr_desc = { expr_desc; expr_loc }
 
 let mk_fun_def ghost rs_kind (id, fun_expr) =
+  reset ();
   let args, ret, spec, expr =
     match fun_expr.expr_desc with
     | Efun (args, _, ret, _, spec, expr) -> (args, ret, spec, expr)
@@ -208,11 +220,11 @@ and inner_pattern info P.{ ppat_desc; ppat_loc; _ } =
         let pats = List.map (inner_pattern info) pat_list in
         mk_ptuple pats
     | Ppat_construct (id, None) -> mk_papp_no_args (longident id.txt)
-    | Ppat_construct (id, Some { ppat_desc = Ppat_tuple pat_list; _ }) ->
+    | Ppat_construct (id, Some (_, { ppat_desc = Ppat_tuple pat_list; _ })) ->
         let s = string_of_longident id.txt in
         let args = pat_arith info s pat_list in
         mk_papp (longident id.txt) args
-    | Ppat_construct (id, Some p) ->
+    | Ppat_construct (id, Some (_, p)) ->
         let pat = inner_pattern info p in
         mk_papp (longident id.txt) [ pat ]
     | Ppat_or (pat1, pat2) ->
@@ -249,9 +261,9 @@ and exception_name_of_pattern info P.{ ppat_desc; _ } =
   | Ppat_var s ->
       let id_loc = T.location s.loc in
       (Qident (T.mk_id s.txt ~id_loc), None)
-  | Ppat_construct (id, pat) ->
+  | Ppat_construct (id, Some (_, pat)) ->
       let id_loc = T.location id.loc in
-      (longident id.txt ~id_loc, Opt.map (inner_pattern info) pat)
+      (longident id.txt ~id_loc, Some (inner_pattern info pat))
   | _ -> assert false
 (* TODO ?*)
 
@@ -340,10 +352,10 @@ let exception_constructor exn_construct =
   let id_exn = T.mk_id txt_exn ~id_loc:(T.location loc_exn) in
   let pty =
     match exn_construct.pext_kind with
-    | Pext_decl (Pcstr_tuple [ cty ], None) -> core_type cty
-    | Pext_decl (Pcstr_tuple cty_list, None) ->
+    | Pext_decl (_, Pcstr_tuple [ cty ], None) -> core_type cty
+    | Pext_decl (_, Pcstr_tuple cty_list, None) ->
         PTtuple (List.map core_type cty_list)
-    | Pext_decl (Pcstr_record _, _) ->
+    | Pext_decl (_, Pcstr_record _, _) ->
         Loc.errorm
           "Record expressions in exceptions declaration is not supported."
     | Pext_decl _ -> assert false (* TODO *)
@@ -596,6 +608,7 @@ let rec expression_desc info expr_loc expr_desc =
     begin 
       match e.Uast.spexp_desc with 
       |Uast.Sexp_construct ({txt = Lident s;_}, arg) -> 
+        add_effect s;
         let p = Eident (Qident (T.mk_id ("perform_"^s))) in 
         let arg = begin match arg with 
           |None -> mk_expr (Etuple [])
@@ -906,6 +919,7 @@ and s_value_binding info svb =
         let args, expr = loop [] expr in
         let expr_loc = expr.expr_loc in
         let old_id = T.mk_id "'Old" in
+        reset();
         let expr = mk_expr ~expr_loc (Elabel (old_id, expr)) in
         let args, expr = subst_args_expr args expr spec_uast in
         let ret = T.mk_pattern Pwild in

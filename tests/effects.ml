@@ -22,6 +22,7 @@ let curr_exp : exp ref = ref (Const 0)
    ensures !curr_exp = Const reply
    modifies curr_exp
   *)
+
 let rec eval e = 
    match e with 
    |Const n -> curr_exp:=e; n 
@@ -35,4 +36,6 @@ let rec eval e =
          else eval_l / eval_r
 (*@
    ensures eval_ind (!curr_exp) = result
-   variant e*)
+   variant e
+*)
+

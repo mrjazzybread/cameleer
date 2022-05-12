@@ -9,28 +9,31 @@ module T = Uterm
 module Tt = Tterm
 module E = Expression
 module O = Odecl
-module Set = Map.Make(String)
+module Map = Map.Make(String)
+
 
 let eff_name = "eff"
 
 
 (**auxiliary variables and functions to map effect names to the types they return*)
-let effect_types : (pty Set.t) ref = ref Set.empty
+let effect_types : (pty Map.t) ref = ref Map.empty
 
-let tl_ref_types : (pty Set.t) ref = ref Set.empty
+let tl_ref_types : (pty Map.t) ref = ref Map.empty
+
+
 
 let map_effect e t =
-  effect_types := Set.add e t (!effect_types)
+  effect_types := Map.add e t (!effect_types)
 
 let map_ref_type r t =
-  tl_ref_types := Set.add r t (!tl_ref_types)
+  tl_ref_types := Map.add r t (!tl_ref_types)
+
 
 let get_ref_type r = 
-  Set.find r (!tl_ref_types)
+  Map.find r (!tl_ref_types)
 
 let get_effect_type e = 
-  Set.find e (!effect_types)
-
+  Map.find e (!effect_types)
 
 
 let _mk_const svb_list expr =
@@ -154,7 +157,7 @@ let type_decl info Uast.({ tname; tspec; tmanifest; tkind; _ } as td) =
       td_vis;
       td_mut;
       td_inv;
-      td_wit = [];
+      td_wit = None;
       td_def = TDrecord field_list;
     }
   in
@@ -166,7 +169,7 @@ let type_decl info Uast.({ tname; tspec; tmanifest; tkind; _ } as td) =
       td_vis;
       td_mut;
       td_inv;
-      td_wit = [];
+      td_wit = None;  
       td_def = er_typ;
       td_ident = T.(mk_id tname.txt ~id_ats ~id_loc:(location tname.loc));
     }
@@ -203,7 +206,7 @@ let val_decl loc vd ghost =
     (* TODO *)
   in
   let mk_single_param lb_arg ct =
-    let add_at_id at id = { id with id_ats = ATstr at :: id.id_ats } in
+    (*let add_at_id at id = { id with id_ats = ATstr at :: id.id_ats } in*)
     let id = Vspec.ident_of_lb_arg lb_arg in
     let id_loc = id.id_loc in
     let pty = E.core_type ct in
@@ -212,9 +215,9 @@ let val_decl loc vd ghost =
       | Lunit -> (id, false, pty)
       | Lnone _ -> (id, false, pty)
       | Lghost (_, ty) -> (id, true, T.pty ty)
-      | Lnamed _ -> (add_at_id Ocaml.Print.named_arg id, false, pty)
+      | Lnamed _ -> ( (*add_at_id Ocaml.named_arg FIXME*) id, false, pty)
       | Loptional _ ->
-          let id = add_at_id Ocaml.Print.optional_arg id in
+          let id = (*add_at_id Ocaml.Print.optional_arg FIXME*) id in
           (id, false, PTtyapp (Qident (T.mk_id "option" ~id_loc), [ pty ]))
     in
     (id_loc, Some id, ghost, pty)
@@ -391,6 +394,8 @@ let subst info ctr_list =
 
 let mk_tid id = T.mk_term (Tident (Qident id))
 
+let fold_terms terms =  
+  List.fold_right  (fun t1 t2 -> T.mk_term (Tbinop(T.term ~in_pred:true true t1, DTand ,t2))) terms (T.mk_term Ttrue) 
 
 (*auxiliary function to create pre and post predicates for the protocol*)
 let mk_protocol_logic name args terms params =
@@ -400,8 +405,7 @@ let mk_protocol_logic name args terms params =
     let branch = [valid_pat, t] in
     T.mk_term (Tcase (mk_tid (T.mk_id "request"), branch)) in
 
-  let term = List.fold_right 
-    (fun t1 t2 -> T.mk_term (Tbinop(T.term ~in_pred:true true t1, DTand ,t2))) terms (T.mk_term Ttrue)  in
+  let term = fold_terms terms in
   O.mk_dlogic Loc.dummy_position None 
     [{  ld_loc=Loc.dummy_position;
         ld_ident= name;
@@ -501,7 +505,22 @@ let setup_protocol prot =
   let perform_decl = 
     O.mk_dlet Loc.dummy_position perform_name false Expr.RKnone (E.mk_expr protocol_perfrom) in 
   f_decl::protocol_pre@protocol_post@[perform_decl]
+(*
+let mk_effect_return t = 
+  PTtyapp (Qident (T.mk_id "eff_return"), [])
 
+let mk_dummy effects expr = 
+  if effects = []
+    then expr
+    else
+       match expr.expr_desc with 
+       |Efun(args, Some pty, _, _, spec, _) ->  
+          let args = List.map (fun (a, b, c, x) -> 
+            match x with |Some t -> (a, b, c, t) |None -> assert false) args in 
+          let dummy = Eany(args, Expr.RKnone, Some (mk_effect_return pty), T.mk_pattern Pwild, Ity.MaskVisible, assert false) in 
+          E.mk_expr (Elet(T.mk_id "", true, Expr.RKnone, expr, assert false))
+       |_ -> expr
+*)
 (* TODO: *)
 (* let clone_subst subst =
  *   let mk_csfsym (q1, q2) = CSfsym (q1, q2) in
@@ -600,16 +619,18 @@ let s_structure, s_signature =
       (rs_kind svb_list, List.map (E.s_value_binding info) svb_list)
     in
     match str_item_desc with
-    | Uast.Str_value (Nonrecursive, svb_list) -> (
+    | Uast.Str_value (Nonrecursive, svb_list) -> 
+      (
         match id_expr_rs_kind_of_svb svb_list with
         | rs_kind, [ (id, expr) ] ->
+            let _e = E.get_effects () in 
             let ghost = is_ghost_let svb_list in
             let rs_kind, expr =
               (*if List.exists is_const_svb svb_list then
                 (Expr.RKfunc, mk_const svb_list expr)
               else *)  (rs_kind, expr)
             in
-            [ O.mk_odecl loc (Dlet (id, ghost, rs_kind, expr)) ]
+            [O.mk_odecl loc (Dlet (id, ghost, rs_kind,expr))]
         | _ -> assert false (* no multiple bindings here *))
     (* FIXME? I am not sure I agree with this last comment. I am almost
        positive that multiple bindings in non-recursive values means a

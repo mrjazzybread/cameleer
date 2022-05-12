@@ -8,6 +8,8 @@ val string_of_longident : Longident.t -> string
 val empty_spec : Ptree.spec
 val mk_expr : ?expr_loc:Loc.position -> Ptree.expr_desc -> Ptree.expr
 
+val get_effects : unit -> string list
+
 val mk_fun_def :
   Ptree.ghost -> Expr.rs_kind -> Ptree.ident * Ptree.expr -> Ptree.fundef
 
