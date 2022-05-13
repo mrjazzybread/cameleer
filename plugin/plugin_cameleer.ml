@@ -13,6 +13,7 @@ open Cameleer
 module Pm = Pmodule
 module E = Cameleer.Expression
 module T = Cameleer.Uterm
+open Effect
 
 let print_modules = Debug.lookup_flag "print_modules"
 
@@ -183,7 +184,7 @@ let params cons =
 let eff_of_cons e = 
   match e.Ppxlib.pext_kind with 
   |Ppxlib.Pext_decl (_, args, Some ({ptyp_desc = Ptyp_constr (_, [t]);_})) ->
-    let () = Declaration.map_effect e.Ppxlib.pext_name.txt (E.core_type t) in
+    let () = map_effect e.Ppxlib.pext_name.txt (E.core_type t) in
     let loc = T.location e.pext_loc in 
     let id = T.mk_id ~id_loc:(T.location e.pext_name.loc) e.pext_name.txt in 
     let tuple_of l = List.map E.core_type (match l with | Ppxlib.Pcstr_tuple l -> l|_-> assert false) in 
@@ -216,7 +217,7 @@ match effects with
   }] in
   let param_types = List.map (fun ((_, id, _), args) -> 
       mk_decl ("param_" ^ id.id_str) [] (TDalias (PTtuple args))) eff_list in
-  let decl = mk_decl Declaration.eff_name [] eff_type in
+  let decl = mk_decl eff_name [] eff_type in
   Some (param_types, decl)
 
 
@@ -243,7 +244,7 @@ let add_state_var d =
   [{spvb_pat = {ppat_desc = Ppat_constraint( {ppat_desc = Ppat_var v;_} , t);_};_}]) ->  
     begin match t.ptyp_desc with 
     |Ptyp_poly(_, {ptyp_desc=Ptyp_constr(id, [t]);_}) when Longident.flatten id.txt = ["ref"] -> 
-        Declaration.map_ref_type (v.txt) (E.core_type t)
+        map_ref_type (v.txt) (E.core_type t)
     |_ -> () end  
   |_ -> ()
 

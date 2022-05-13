@@ -23,4 +23,4 @@ val core_type : P.core_type -> Ptree.pty
 val exception_constructor :
   P.extension_constructor -> Ptree.ident * Ptree.pty * Ity.mask
 
-val s_value_binding : info -> Uast.s_value_binding -> Ptree.ident * Ptree.expr
+val s_value_binding : info -> Uast.s_value_binding -> (Ptree.ident * Ptree.expr) list

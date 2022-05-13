@@ -5,35 +5,14 @@ open Parsetree
 open Why3
 open Ptree
 open Vspec
+open Effect
 module T = Uterm
 module Tt = Tterm
 module E = Expression
 module O = Odecl
-module Map = Map.Make(String)
-
-
-let eff_name = "eff"
-
-
-(**auxiliary variables and functions to map effect names to the types they return*)
-let effect_types : (pty Map.t) ref = ref Map.empty
-
-let tl_ref_types : (pty Map.t) ref = ref Map.empty
 
 
 
-let map_effect e t =
-  effect_types := Map.add e t (!effect_types)
-
-let map_ref_type r t =
-  tl_ref_types := Map.add r t (!tl_ref_types)
-
-
-let get_ref_type r = 
-  Map.find r (!tl_ref_types)
-
-let get_effect_type e = 
-  Map.find e (!effect_types)
 
 
 let _mk_const svb_list expr =
@@ -433,17 +412,16 @@ let mk_dref id =
   T.mk_term (Tident (Qident id)) ))
 
 (**Given a protocol, creates two predicates, one that
-   contains the protocols precondition and another that contains
-   protocol's post condition. Additionally, we will also create 
-   a {!perform} function that receives an effect and returns the type
-   the effect named after the protocol returns. If the field is {!None}
-   the return type is unit. This {!perform} function's specification will consist 
-   of the protocol's pre and post condition, as well as a {!writes} clause
-with the variables modified by the protocol. The two predicates will receive the 
-performed effected, the state prior to the effect being performed and, 
-for the post condition, the state after the handler returns control to the function and the reply 
-the handler sends. Finally, we will also create a logical function that instatiates this effect
-and forces it into the required type. 
+  contains the protocols precondition and another that contains
+  protocol's post condition. Additionally, we will also create 
+  a {!perform} function that receives an effect and returns the type
+  the effect named after the protocol returns. If the field is {!None}
+  the return type is unit. This {!perform} function's specification will consist 
+  of the protocol's pre and post condition, as well as a {!writes} clause
+  with the variables modified by the protocol. The two predicates will receive the 
+  performed effected, the state prior to the effect being performed and, 
+  for the post condition, the state after the handler returns control to the function and the reply 
+  the handler sends. 
   @param prot the protocol we are handling 
   
   @return the two predicates and the perform function*)
@@ -595,21 +573,21 @@ let s_structure, s_signature =
     in
     let is_ghost_let svb_list = List.exists is_ghost_svb svb_list in
     let id_expr_rs_kind_of_svb svb_list =
-      (rs_kind svb_list, List.map (E.s_value_binding info) svb_list)
+      let s_value_binding = E.s_value_binding info in 
+      (rs_kind svb_list, List.flatten (List.map s_value_binding svb_list))
     in
     match str_item_desc with
     | Uast.Str_value (Nonrecursive, svb_list) -> 
       (
         match id_expr_rs_kind_of_svb svb_list with
-        | rs_kind, [ (id, expr) ] ->
-            let _e = E.get_effects () in 
+        | rs_kind, [ id, expr ] ->
             let ghost = is_ghost_let svb_list in
             let rs_kind, expr =
               (*if List.exists is_const_svb svb_list then
                 (Expr.RKfunc, mk_const svb_list expr)
               else *)  (rs_kind, expr)
             in
-            [O.mk_odecl loc (Dlet (id, ghost, rs_kind,expr))]
+            [O.mk_odecl loc (Dlet (id, ghost, rs_kind, expr))]
         | _ -> assert false (* no multiple bindings here *))
     (* FIXME? I am not sure I agree with this last comment. I am almost
        positive that multiple bindings in non-recursive values means a
@@ -617,10 +595,22 @@ let s_structure, s_signature =
        list of `let..in` bindings *)
     | Uast.Str_value (Recursive, svb_list) ->
         let rs_kind, id_fun_expr_list = id_expr_rs_kind_of_svb svb_list in
+        let funs, dummy = 
+          let rec split l = 
+            match l with 
+            |[] -> [], []
+            |[x] -> [x], []
+            |(id1, e1)::(id2, e2)::t ->
+              if id1 = id2 then 
+                let f, d = split t in (id1, e1)::f, (id2, e2)::d 
+                else let f, d = split t in (id1, e1)::f,d in split id_fun_expr_list in 
         let ghost = is_ghost_let svb_list in
-        [
-          O.mk_drec loc (List.map (E.mk_fun_def ghost rs_kind) id_fun_expr_list);
-        ]
+        let rec_fun = List.map (E.mk_fun_def ghost rs_kind) funs in
+        let vcs = E.mk_expr (Erec(rec_fun, E.mk_expr (Etuple []))) in 
+        (O.mk_odecl Loc.dummy_position (Dlet(T.mk_id (vc()), true, Expr.RKnone, vcs)))::
+        (List.map (fun (id, e) -> O.mk_odecl loc (Dlet (id, ghost, rs_kind, e))) dummy)
+        
+        
     | Uast.Str_type (rec_flag, type_decl_list)
     | Uast.Str_ghost_type (rec_flag, type_decl_list) ->
         ignore rec_flag;

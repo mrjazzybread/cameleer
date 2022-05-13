@@ -23,7 +23,7 @@ let curr_exp : exp ref = ref (Const 0)
    modifies curr_exp
   *)
 
-let rec eval e = 
+let rec eval (e : exp) : int = 
    match e with 
    |Const n -> curr_exp:=e; n 
    |Div(e1, e2) -> 
@@ -36,6 +36,6 @@ let rec eval e =
          else eval_l / eval_r
 (*@
    ensures eval_ind (!curr_exp) = result
+   performs Div_by_zero
    variant e
 *)
-

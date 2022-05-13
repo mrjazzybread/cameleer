@@ -105,7 +105,7 @@ let rm_old t =
 
 let is_deref q = 
   match q with 
-  |Uast.Qpreid {pid_str;_} -> print_endline "wow"; pid_str = prefix "!"
+  |Uast.Qpreid {pid_str;_} -> pid_str = prefix "!"
   |_ -> false
 
   let rec term ?(in_pred=false) in_post Uast.{ term_desc = t_desc; term_loc } =

@@ -8,6 +8,7 @@ module T = Uterm
 module S = Vspec
 module P = Parsetree
 module Set = Stdlib.Set.Make(String)
+open Effect
 
 let performed_effects : ((Set.t) ref) = ref Set.empty
 
@@ -193,6 +194,14 @@ let mk_id_pat (id, pat) =
   (id_field, id_pat)
 
 type pat_with_exn = { pat_term : pattern option; pat_exn_name : qualid option }
+
+let create_dummy args pty ret  _spec p =
+  let args = List.map (fun (a, b, c, d) -> match d with |Some d -> (a, b, c, d) |_ -> assert false) args in
+  let s = match List.hd p with |Uast.Qpreid id -> id.pid_str |_ -> assert false in 
+  let _effect_type = get_effect_type s in
+  Eany(args, Expr.RKnone,pty, ret, Ity.MaskVisible, empty_spec) 
+
+  
 
 let rec pattern info P.({ ppat_desc; _ } as pat) =
   match ppat_desc with
@@ -563,7 +572,7 @@ let rec expression_desc info expr_loc expr_desc =
     else Expr.RKnone
   in
   let id_expr_rs_kind_of_svb_list svb_list =
-    (rs_kind svb_list, List.map (fun svb -> s_value_binding info svb) svb_list)
+    (rs_kind svb_list, List.flatten (List.map (fun svb -> s_value_binding info svb) svb_list))
   in
   let is_false = function
     | Uast.Sexp_construct ({ txt = Lident "false"; _ }, None) -> true
@@ -596,7 +605,7 @@ let rec expression_desc info expr_loc expr_desc =
       (List.fold_right mk_let svbs (expression info expr)).expr_desc
   | Uast.Sexp_let (Recursive, svb_list, expr) ->
       let rs_kind, id_fun_expr_list = id_expr_rs_kind_of_svb_list svb_list in
-      let expr_in = expression info expr in
+      let expr_in = expression info expr in 
       mk_erec (List.map (mk_fun_def false rs_kind) id_fun_expr_list) expr_in
   | Uast.Sexp_function _ -> assert false (* TODO *)
   | Uast.Sexp_fun (Nolabel, None, pat, expr_fun, spec) ->
@@ -767,9 +776,9 @@ and let_match info expr svb =
       assert (pat.pat_exn_name = None);
       mk_ematch_no_exn svb_expr [ (Opt.get pat.pat_term, expr) ]
   | _ ->
-      let id, svb_expr = s_value_binding info svb in
-      mk_elet_none id (is_ghost_svb svb) svb_expr expr
-
+      match s_value_binding info svb with 
+      |[id, svb_expr] -> mk_elet_none id (is_ghost_svb svb) svb_expr expr
+      |_ -> assert false
 and special_binder expr { binder_info_desc; binder_info_loc = loc } =
   let mk_let_pat binder_expr (id_field, id_pat) e_rhs =
     let e_app = Eidapp (Qident id_field, [ binder_expr ]) in
@@ -874,8 +883,8 @@ and s_value_binding info svb =
     | Sexp_fun (_, None, pat, e, _) ->
         (* TODO? Should we ignore the spec that comes with [Sexp_fun]? *)
         let arg, binder_info = binder_of_pattern info pat in
-        let binder_list, expr = loop (arg :: acc) e in
-        (binder_list, special_binder expr binder_info)
+        let binder_list, expr, pty = loop (arg :: acc) e in
+        (binder_list, special_binder expr binder_info, pty)
     | Sexp_function case_list ->
         let param_id = T.mk_id "param" in
         let param = mk_expr (Eident (Qident param_id)) ~expr_loc:T.dummy_loc in
@@ -883,11 +892,12 @@ and s_value_binding info svb =
         let reg_branch, exn_branch = case info case_list in
         let ematch = mk_ematch param reg_branch exn_branch in
         let expr_loc = T.location expr.spexp_loc in
-        (List.rev (arg :: acc), mk_expr ematch ~expr_loc)
-    | _ -> (List.rev acc, expression info expr)
+        (List.rev (arg :: acc), mk_expr ematch ~expr_loc, None)
+    | Sexp_constraint(e, ty) -> (List.rev acc, expression info e, Some (core_type ty))
+    | _ -> (List.rev acc, expression info expr, None)
   in
   (* TODO *)
-  let mk_svb_expr expr =
+  let mk_svb_expr expr  =
     match expr.Uast.spexp_desc with
     | Sexp_fun _ ->
         (* TODO? Should we ignore the spec that comes with [Sexp_fun]? *)
@@ -916,17 +926,21 @@ and s_value_binding info svb =
                done
            ```*)
         let spec_uast = svb.Uast.spvb_vspec in
-        let args, expr = loop [] expr in
+        let args, expr, pty = loop [] expr in
         let expr_loc = expr.expr_loc in
         let old_id = T.mk_id "'Old" in
         reset();
         let expr = mk_expr ~expr_loc (Elabel (old_id, expr)) in
         let args, expr = subst_args_expr args expr spec_uast in
         let ret = T.mk_pattern Pwild in
+        let p = match svb.spvb_vspec with |None -> [] | Some x -> x.sp_performs in
         let spec = spec svb.Uast.spvb_vspec in
-        let efun = Efun (args, None, ret, Ity.MaskVisible, spec, expr) in
-        mk_expr efun ~expr_loc
-    | Sexp_function case_list ->
+        let efun = Efun (args, pty, ret, Ity.MaskVisible, spec, expr) in 
+        let efun = mk_expr efun ~expr_loc in 
+        if p = []
+          then efun, None
+          else efun, Some (mk_expr (create_dummy args pty ret spec p))
+        | Sexp_function case_list ->
         let spec_uast = svb.Uast.spvb_vspec in
         let param_id = T.mk_id "param" in
         let arg = (T.dummy_loc, Some param_id, false, None) in
@@ -937,8 +951,10 @@ and s_value_binding info svb =
         let args, expr = subst_args_expr [ arg ] match_expr spec_uast in
         let spec = spec svb.Uast.spvb_vspec (* TODO *) in
         let efun = mk_efun_visible args None spec expr in
-        mk_expr efun ~expr_loc
-    | _ -> expression info expr
+        mk_expr efun ~expr_loc, None
+    | _ -> expression info expr, None
   in
   let id = id_of_pat svb.spvb_pat in
-  (id, mk_svb_expr pexp)
+  let exp, dummy =  mk_svb_expr pexp in 
+  let l = match dummy with |Some e -> [(id, e)] |None -> [] in 
+  (id,exp)::l
