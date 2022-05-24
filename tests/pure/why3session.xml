@@ -2,14 +2,22 @@
 <!DOCTYPE why3session PUBLIC "-//Why3//proof session v5//EN"
 "http://why3.lri.fr/why3session.dtd">
 <why3session shape_version="6">
+<prover id="0" name="Alt-Ergo" version="2.2.0" timelimit="5" steplimit="0" memlimit="1000"/>
+<prover id="1" name="Z3" version="4.8.14" timelimit="5" steplimit="0" memlimit="1000"/>
 <file format="ocaml">
 <path name=".."/><path name="pure.ml"/>
 <theory name="Pure">
  <goal name="same_location_eq">
+ <proof prover="0"><result status="unknown" time="0.01"/></proof>
+ <proof prover="1" obsolete="true"><result status="timeout" time="5.00"/></proof>
  </goal>
  <goal name="compare_pre_order">
+ <proof prover="0"><result status="unknown" time="0.01"/></proof>
+ <proof prover="1" obsolete="true"><result status="failure" time="0.00"/></proof>
  </goal>
  <goal name="Sys.non_neg_max_array_length">
+ <proof prover="0"><undone/></proof>
+ <proof prover="1" obsolete="true"><result status="failure" time="0.00"/></proof>
  </goal>
 </theory>
 </file>

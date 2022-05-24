@@ -5,9 +5,16 @@
 <prover id="0" name="Z3" version="4.8.6" timelimit="5" steplimit="0" memlimit="1000"/>
 <prover id="1" name="Alt-Ergo" version="2.2.0" timelimit="5" steplimit="0" memlimit="1000"/>
 <prover id="2" name="Z3" version="4.8.14" timelimit="5" steplimit="0" memlimit="1000"/>
-<file format="ocaml" proved="true">
+<prover id="3" name="Z3" version="4.8.14" alternative="noBV" timelimit="5" steplimit="0" memlimit="1000"/>
+<file format="ocaml">
 <path name=".."/><path name="effects.ml"/>
-<theory name="Effects" proved="true">
+<theory name="Effects">
+ <goal name="same_location_eq">
+ </goal>
+ <goal name="compare_pre_order">
+ </goal>
+ <goal name="Sys.non_neg_max_array_length">
+ </goal>
  <goal name="vc1&#39;vc" expl="VC for vc1" proved="true">
  <proof prover="1"><result status="valid" time="0.04" steps="130"/></proof>
  <transf name="smoke_detector_deep" >
@@ -16,7 +23,9 @@
   <transf name="smoke_detector_top" >
    <goal name="vc1&#39;vc.0.0" expl="VC for vc1">
    <proof prover="0" obsolete="true"><result status="timeout" time="5.00" steps="9496030"/></proof>
-   <proof prover="2" obsolete="true"><result status="failure" time="0.00"/></proof>
+   <proof prover="1"><result status="unknown" time="0.12"/></proof>
+   <proof prover="2"><undone/></proof>
+   <proof prover="3"><undone/></proof>
    </goal>
   </transf>
   </goal>
@@ -28,13 +37,13 @@
   <proof prover="2" obsolete="true"><result status="valid" time="0.02" steps="94959"/></proof>
   </goal>
   <goal name="vc1&#39;vc.1" expl="variant decrease">
-  <proof prover="0" obsolete="true"><result status="valid" time="0.04" steps="99564"/></proof>
-  <proof prover="1" obsolete="true"><result status="failure" time="0.00"/></proof>
-  </goal>
-  <goal name="vc1&#39;vc.2" expl="variant decrease">
   <proof prover="0" obsolete="true"><result status="valid" time="0.05" steps="99550"/></proof>
   <proof prover="1" obsolete="true"><result status="failure" time="0.00"/></proof>
   <proof prover="2" obsolete="true"><result status="valid" time="0.03" steps="95770"/></proof>
+  </goal>
+  <goal name="vc1&#39;vc.2" expl="variant decrease">
+  <proof prover="0" obsolete="true"><result status="valid" time="0.04" steps="99564"/></proof>
+  <proof prover="1" obsolete="true"><result status="failure" time="0.00"/></proof>
   </goal>
   <goal name="vc1&#39;vc.3" expl="precondition">
   <proof prover="0" obsolete="true"><result status="valid" time="0.06" steps="101971"/></proof>

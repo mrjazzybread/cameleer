@@ -1,8 +1,7 @@
-(*type 'a eff = ..*)
-
 type _ eff += Div_by_zero : int eff
 
 type exp = Const of int | Div of exp * exp
+let curr_exp : exp ref = ref (Const 0) 
 
 (*@function eval_ind (exp : exp) : int =
 match exp with
@@ -14,8 +13,6 @@ match exp with
    match e with 
    |Const _ -> false
    |Div _ r -> eval_ind r = 0 *)
-
-let curr_exp : exp ref = ref (Const 0) 
 
 (*@ protocol Div_by_zero : 
    requires right_zero (!curr_exp)

@@ -16,10 +16,15 @@ let map_effect e t =
   effect_types := Map.add e t (!effect_types)
 
 let map_ref_type r t =
+  let t = 
+    match t with 
+    |PTtyapp(Qident id, l) -> PTtyapp(Qident({id with id_loc = Why3.Loc.dummy_position}), l)
+    | _ -> t in 
   tl_ref_types := Map.add r t (!tl_ref_types)
 
 
 let get_ref_type r = 
+
   Map.find r (!tl_ref_types)
 
 let get_effect_type e = 

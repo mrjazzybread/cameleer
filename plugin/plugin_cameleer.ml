@@ -137,9 +137,10 @@ let apply state_term is_kont =
   Dlet(T.mk_id name, false, Expr.RKnone, E.mk_expr exp)
 
 
-let use_std_lib ref_decls refs =
+let use_std_lib ref_decls types refs =
   let dummy_pos = Loc.dummy_position in
   let stdlib = Qdot (Qident (T.mk_id "ocamlstdlib"), T.mk_id "Stdlib") in
+  let stdlib_fun = Qdot (Qident (T.mk_id "ocamlstdlib"), T.mk_id "Stdlib_fun") in
   let ref_types = Seq.map (fun (_, pty) -> pty) refs in 
   let state_args = Seq.map (fun (x, _ ) -> 
     let id = T.mk_term (Tident (Qident (T.mk_id x))) in 
@@ -148,10 +149,13 @@ let use_std_lib ref_decls refs =
     ) refs in
   let state_term = T.mk_term (Ttuple(List.of_seq state_args)) in 
   let state_type = PTtuple (List.of_seq ref_types) in 
-  let use_stdlib =
-    Odecl.mk_cloneexport stdlib [CStsym ( Qident (T.mk_id "state"), [], state_type)]
+  let imports = 
+    Odecl.mk_cloneexport stdlib []
   in
-  [ use_stdlib]@ ref_decls @[
+  let use_stdlib =
+    Odecl.mk_cloneexport stdlib_fun [CStsym ( Qident (T.mk_id "state"), [], state_type)]
+  in
+  [imports]@ types @ ref_decls @[use_stdlib;
   Odecl.mk_dtype dummy_pos [eff_result];
   Odecl.mk_odecl dummy_pos (apply state_term true);
   Odecl.mk_odecl dummy_pos (apply state_term false);
@@ -354,13 +358,14 @@ match effects with
    param_types, decl
 
 (** Seperates the program into two lists, one with declerations of variables of type {'a !ref} and another with the remaining declerations
-    We also assume that all references are declared at the start of the program. We also map the name of each reference to its type
+We also assume that all references are declared at the start of the program. We also map the name of each reference to its type
+
     @param p list of Gospel definitions
-    @returns l1, l2 where l1 is a list of reference definitions and l2 are the remaining program definitions *)
+    @returns l1, l2 where l1 is a list of reference definitions and l2 are the remaining program definitions*)
 let rec add_state_var p =
   match p with 
-  |d::t -> 
-    begin match d.sstr_desc with 
+  |d::t -> begin
+      match d.sstr_desc with 
       |Uast.Str_value(Nonrecursive, 
       [{spvb_pat = {ppat_desc = Ppat_constraint( {ppat_desc = Ppat_var v;_} , core_t);_};_}]) ->  
         begin match core_t.ptyp_desc with 
@@ -368,8 +373,8 @@ let rec add_state_var p =
             map_ref_type (v.txt) (E.core_type core_t);
             let l1, l2 = add_state_var t in 
             d::l1, l2
-      |_ -> [], t end
-    |_ -> [], t end  
+        |_ -> [], p end
+      |_ -> [], p end  
   |[] -> [], []
 
 let read_channel env path file c =
@@ -387,10 +392,25 @@ let read_channel env path file c =
   (* This is the beginning of the top module construction *)
   let info = mk_info () in
   let effects, program = List.partition_map is_effect f in
-  let refs, program = add_state_var program in
+  (*The generated program will have the following structure:
+    type eff = ... 
+    
+    user defined types 
+    
+    reference variables 
+    
+    pre, post, apply, contin 
+    
+    rest of program *)
   let p, eff_type = mk_effect_type effects in 
+  let types, program = 
+    List.partition 
+      (fun x -> match x.sstr_desc with |Uast.Str_type _ -> true |_ -> false) 
+      program in 
+  let refs, program = add_state_var program in
+  let types = Declaration.s_structure info types in 
   let refs = Declaration.s_structure info refs in 
-  let use_std_lib = use_std_lib refs (Map.to_seq !tl_ref_types) in 
+  let use_std_lib = use_std_lib refs types (Map.to_seq !tl_ref_types) in 
   let f = Declaration.s_structure info program in
   let f = eff_type::(use_std_lib@p@f) in
   (*let f = top_level f in*)

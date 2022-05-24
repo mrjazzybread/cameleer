@@ -1,3 +1,3 @@
-let x = 0 
+type exp = Const of int | Div of exp * exp
 
-let y = 0
+let x =0
