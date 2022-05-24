@@ -17,13 +17,145 @@ open Effect
 
 let print_modules = Debug.lookup_flag "print_modules"
 
-let use_std_lib =
+let lambda_name = "lambda"
+let cont_name = "continuation"
+let eff_result = "eff_result"
+let post_name = "post"
+let continue_name = "contin"
+let apply_name = "apply"
+
+
+let mk_type_params n = 
+  List.init n (fun n -> T.mk_id ("t" ^ string_of_int n))
+
+let mk_param ?(name=None) pty : param =
+  Loc.dummy_position, Option.map(fun x -> (T.mk_id x)) name, false, pty
+
+let mk_tvars n =
+  List.map (fun x -> PTtyvar x)
+    (mk_type_params n)
+
+let qualid_of_string s =
+  Qident (T.mk_id s)
+
+let mk_type name vis n_params def =
+  {
+  td_loc = Loc.dummy_position;
+  td_ident = T.mk_id name;
+  td_vis = vis;
+  td_params = mk_type_params n_params;
+  td_mut = false;
+  td_inv = [];
+  td_wit = None;
+  td_def = def;
+}
+
+let mk_field name pty mut ghost =
+  {
+    f_loc = Loc.dummy_position;
+    f_ident = T.mk_id name;
+    f_pty = pty;
+    f_mutable = mut;
+    f_ghost = ghost
+  }
+(*
+let _kont_type = 
+  mk_type lambda_name Abstract 2 (TDrecord [])
+
+let eff_kont =
+  let kont_field = 
+    mk_field "k" (PTtyapp(qualid_of_string lambda_name, mk_tvars 2)) false true in 
+  let one_shot =
+    mk_field "valid" (PTtyapp (qualid_of_string "bool", [])) true true in 
+  mk_type cont_name Public 2 
+  (TDrecord[kont_field; one_shot])
+*)
+let eff_result =
+  let params = mk_tvars 2 in
+  let result_cons =
+    (Loc.dummy_position, T.mk_id "Result", 
+    [mk_param (List.hd params)]) in 
+  let eff_param = mk_param (PTtyapp(qualid_of_string eff_name, [])) in
+  let cont_param = 
+    mk_param (PTtyapp(qualid_of_string cont_name, List.rev params)) in
+  let request_cons =
+    (Loc.dummy_position, T.mk_id "Request",
+    [eff_param; cont_param]) in 
+  mk_type eff_result Public 2 
+  (TDalgebraic([result_cons; request_cons]))
+(*
+let mk_logic_dummy name args return =
+  {
+    ld_loc = Loc.dummy_position;
+    ld_ident = T.mk_id name;
+    ld_params = args;
+    ld_type = return;
+    ld_def = None
+  }
+
+let post_pred =
+  let params = mk_tvars 2 in 
+  let kont_arg =
+    mk_param (PTtyapp (qualid_of_string cont_name, params)) in 
+  let arg_arg =
+    mk_param (List.hd params) in 
+  let result_arg =
+    mk_param (List.nth params 1) in 
+  mk_logic_dummy post_name [kont_arg; arg_arg; result_arg] None
+*)
+let mk_apply tl =
+  let rec mk tl =
+  match tl with 
+  |[] -> assert false 
+  |[t] -> t 
+  |t::tl -> T.mk_term (Tapply(mk tl, t)) in 
+    mk (List.rev tl)
+
+let term_of_string s =
+  T.mk_term (Tident (Qident (T.mk_id s)))
+let apply state_term is_kont =
+  let params = mk_tvars 2 in
+  let t = qualid_of_string (if is_kont then cont_name else lambda_name) in 
+  let cont_arg = mk_param ~name:(Some "f") (PTtyapp (t, params)) in 
+  let arg_arg = mk_param ~name:(Some "arg") (List.hd params) in 
+  let args = [cont_arg; arg_arg] in 
+  let post_term =  term_of_string post_name in 
+  let cont_term = 
+    if is_kont then mk_apply [term_of_string "k"; term_of_string "f"]
+    else term_of_string "f" in 
+  let arg_term = term_of_string "arg" in 
+  let result_term = term_of_string "result" in 
+  let postcond = mk_apply [post_term; cont_term; arg_term; state_term; state_term; result_term] in 
+  let valid = mk_apply [term_of_string "valid"; term_of_string "f"] in 
+  let invalid_kont = 
+    if is_kont then T.mk_term (Tbinnop(postcond, DTand, T.mk_term (Tnot(valid))))
+    else postcond in
+  let writes = if is_kont then [valid] else [] in
+  let spec = Vspec.mk_spec (T.mk_term Ttrue) invalid_kont writes in 
+  let exp = Eany(args, Expr.RKnone, Some(List.nth params 1), T.mk_pattern Pwild, Ity.MaskVisible, spec) in 
+  let name = if is_kont then continue_name else apply_name in 
+  Dlet(T.mk_id name, false, Expr.RKnone, E.mk_expr exp)
+
+
+let use_std_lib ref_decls refs =
   let dummy_pos = Loc.dummy_position in
   let stdlib = Qdot (Qident (T.mk_id "ocamlstdlib"), T.mk_id "Stdlib") in
+  let ref_types = Seq.map (fun (_, pty) -> pty) refs in 
+  let state_args = Seq.map (fun (x, _ ) -> 
+    let id = T.mk_term (Tident (Qident (T.mk_id x))) in 
+    let bang = T.mk_term (Tident (Qident (T.mk_id (Ident.op_prefix "!")))) in 
+    mk_apply [bang; id]
+    ) refs in
+  let state_term = T.mk_term (Ttuple(List.of_seq state_args)) in 
+  let state_type = PTtuple (List.of_seq ref_types) in 
   let use_stdlib =
-    Odecl.mk_duseimport dummy_pos ~import:false [ (stdlib, None) ]
+    Odecl.mk_cloneexport stdlib [CStsym ( Qident (T.mk_id "state"), [], state_type)]
   in
-  [ use_stdlib; Odecl.mk_duseimport dummy_pos ~import:false [Qdot (Qident (T.mk_id "ref"), T.mk_id "Ref"), None] ]
+  [ use_stdlib]@ ref_decls @[
+  Odecl.mk_dtype dummy_pos [eff_result];
+  Odecl.mk_odecl dummy_pos (apply state_term true);
+  Odecl.mk_odecl dummy_pos (apply state_term false);
+  ]
 
 let mk_info () =
   let info = Odecl.empty_info () in
@@ -174,7 +306,7 @@ let is_effect d =
 let params cons =
   match cons with 
   |Ppxlib.Pcstr_tuple l -> 
-    [Loc.dummy_position, None, false, PTtuple (List.map (fun t -> E.core_type t) l)]
+    [mk_param (PTtuple (List.map (fun t -> E.core_type t) l))]
   |_ -> assert false
 
 (** Turns an effect decleration {!E of t1 * t2 * ... : ... } into 
@@ -196,57 +328,49 @@ let eff_of_cons e =
 If the list of type extensions is empty, this function will return None
 
 @param effects the type_extension objects representing effect decleration
-@return an algebraic data type {!type eff 'a = ...} with all the user defined effects*)
+@return an algebraic data type {!type eff = ...} with all the user defined effects*)
 let mk_effect_type effects =
-match effects with
-|[] -> None 
-|_ ->
-  let cons_list = List.flatten (List.map (fun e -> e.Ppxlib.ptyext_constructors) effects) in 
-  let eff_list = List.map eff_of_cons cons_list in 
-  let eff_type = TDalgebraic (List.map (fun (x, _) -> x) eff_list) in
-  let mk_decl name params eff_type = Odecl.mk_dtype Loc.dummy_position
+  let mk_decl name eff_type vis = Odecl.mk_dtype Loc.dummy_position
     [{
     td_loc = Loc.dummy_position;
     td_ident = T.mk_id name;
-    td_params = params;
-    td_vis = Public;
+    td_params = [];
+    td_vis = vis;
     td_mut = false;
     td_inv = [];
     td_wit = None;
     td_def = eff_type
   }] in
+match effects with
+|[] -> [], mk_decl eff_name (TDrecord []) Abstract
+|_ ->
+  let cons_list = List.flatten (List.map (fun e -> e.Ppxlib.ptyext_constructors) effects) in 
+  let eff_list = List.map eff_of_cons cons_list in 
+  let eff_type = TDalgebraic (List.map (fun (x, _) -> x) eff_list) in
+  
   let param_types = List.map (fun ((_, id, _), args) -> 
-      mk_decl ("param_" ^ id.id_str) [] (TDalias (PTtuple args))) eff_list in
-  let decl = mk_decl eff_name [] eff_type in
-  Some (param_types, decl)
+      mk_decl ("param_" ^ id.id_str) (TDalias (PTtuple args)) Public) eff_list  in
+  let decl = mk_decl eff_name eff_type Public in
+   param_types, decl
 
-
-let _top_level f = 
-  let rest, dlets = List.partition_map (fun d -> 
-    match d with
-    |Odecl.Odecl (_, Dlet(id, g, Expr.RKnone, e)) -> Either.Right (id, g, e) 
-    |_ -> Either.Left d 
-    ) f in 
-  let convert (id, g, e1) e2 =
-    E.mk_expr (
-      Elet(id, g, Expr.RKnone, e1, e2)
-    ) in 
-  let rec mk_big_salame l = 
-    match l with 
-    | x::(_::_ as t) -> convert x (mk_big_salame t)
-    |[x] -> convert x (E.mk_expr (Etuple []))
-    |[] -> assert false 
-  in rest@[Odecl.mk_dlet Loc.dummy_position (T.mk_id "top_level") false Expr.RKnone (mk_big_salame dlets)]
-
-let add_state_var d =
-  match d.sstr_desc with 
-  |Uast.Str_value(Nonrecursive, 
-  [{spvb_pat = {ppat_desc = Ppat_constraint( {ppat_desc = Ppat_var v;_} , t);_};_}]) ->  
-    begin match t.ptyp_desc with 
-    |Ptyp_poly(_, {ptyp_desc=Ptyp_constr(id, [t]);_}) when Longident.flatten id.txt = ["ref"] -> 
-        map_ref_type (v.txt) (E.core_type t)
-    |_ -> () end  
-  |_ -> ()
+(** Seperates the program into two lists, one with declerations of variables of type {'a !ref} and another with the remaining declerations
+    We also assume that all references are declared at the start of the program. We also map the name of each reference to its type
+    @param p list of Gospel definitions
+    @returns l1, l2 where l1 is a list of reference definitions and l2 are the remaining program definitions *)
+let rec add_state_var p =
+  match p with 
+  |d::t -> 
+    begin match d.sstr_desc with 
+      |Uast.Str_value(Nonrecursive, 
+      [{spvb_pat = {ppat_desc = Ppat_constraint( {ppat_desc = Ppat_var v;_} , core_t);_};_}]) ->  
+        begin match core_t.ptyp_desc with 
+        |Ptyp_poly(_, {ptyp_desc=Ptyp_constr(id, [core_t]);_}) when Longident.flatten id.txt = ["ref"] -> 
+            map_ref_type (v.txt) (E.core_type core_t);
+            let l1, l2 = add_state_var t in 
+            d::l1, l2
+      |_ -> [], t end
+    |_ -> [], t end  
+  |[] -> [], []
 
 let read_channel env path file c =
   if !debug then Format.eprintf "Reading file '%s'@." file;
@@ -263,11 +387,12 @@ let read_channel env path file c =
   (* This is the beginning of the top module construction *)
   let info = mk_info () in
   let effects, program = List.partition_map is_effect f in
-  let () = List.iter add_state_var program in
-  let eff_type = mk_effect_type effects in 
+  let refs, program = add_state_var program in
+  let p, eff_type = mk_effect_type effects in 
+  let refs = Declaration.s_structure info refs in 
+  let use_std_lib = use_std_lib refs (Map.to_seq !tl_ref_types) in 
   let f = Declaration.s_structure info program in
-  let f = match eff_type with |Some (p, eff_t)  -> eff_t::(p@f) | None -> f in
-  let f = use_std_lib @ f in
+  let f = eff_type::(use_std_lib@p@f) in
   (*let f = top_level f in*)
   let rec pp_list pp fmt l =
     match l with

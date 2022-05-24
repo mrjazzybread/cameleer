@@ -8,52 +8,53 @@
 <file format="ocaml" proved="true">
 <path name=".."/><path name="effects.ml"/>
 <theory name="Effects" proved="true">
- <goal name="eval&#39;vc" expl="VC for eval" proved="true">
+ <goal name="vc1&#39;vc" expl="VC for vc1" proved="true">
+ <proof prover="1"><result status="valid" time="0.04" steps="130"/></proof>
  <transf name="smoke_detector_deep" >
-  <goal name="eval&#39;vc.0" expl="VC for eval">
+  <goal name="vc1&#39;vc.0" expl="VC for vc1">
   <proof prover="1" obsolete="true"><result status="failure" time="0.00"/></proof>
   <transf name="smoke_detector_top" >
-   <goal name="eval&#39;vc.0.0" expl="VC for eval">
+   <goal name="vc1&#39;vc.0.0" expl="VC for vc1">
    <proof prover="0" obsolete="true"><result status="timeout" time="5.00" steps="9496030"/></proof>
-   <proof prover="2"><undone/></proof>
+   <proof prover="2" obsolete="true"><result status="failure" time="0.00"/></proof>
    </goal>
   </transf>
   </goal>
  </transf>
- <transf name="split_vc" proved="true" >
-  <goal name="eval&#39;vc.0" expl="postcondition" proved="true">
+ <transf name="split_vc" >
+  <goal name="vc1&#39;vc.0" expl="postcondition">
   <proof prover="0" obsolete="true"><result status="valid" time="0.04" steps="98820"/></proof>
-  <proof prover="1"><undone/></proof>
-  <proof prover="2"><result status="valid" time="0.02" steps="94959"/></proof>
+  <proof prover="1" obsolete="true"><result status="failure" time="0.00"/></proof>
+  <proof prover="2" obsolete="true"><result status="valid" time="0.02" steps="94959"/></proof>
   </goal>
-  <goal name="eval&#39;vc.1" expl="variant decrease" proved="true">
-  <proof prover="0"><result status="valid" time="0.04" steps="99564"/></proof>
-  <proof prover="1"><result status="failure" time="0.00"/></proof>
+  <goal name="vc1&#39;vc.1" expl="variant decrease">
+  <proof prover="0" obsolete="true"><result status="valid" time="0.04" steps="99564"/></proof>
+  <proof prover="1" obsolete="true"><result status="failure" time="0.00"/></proof>
   </goal>
-  <goal name="eval&#39;vc.2" expl="variant decrease" proved="true">
+  <goal name="vc1&#39;vc.2" expl="variant decrease">
   <proof prover="0" obsolete="true"><result status="valid" time="0.05" steps="99550"/></proof>
-  <proof prover="1"><undone/></proof>
-  <proof prover="2"><result status="valid" time="0.03" steps="95770"/></proof>
+  <proof prover="1" obsolete="true"><result status="failure" time="0.00"/></proof>
+  <proof prover="2" obsolete="true"><result status="valid" time="0.03" steps="95770"/></proof>
   </goal>
-  <goal name="eval&#39;vc.3" expl="precondition" proved="true">
+  <goal name="vc1&#39;vc.3" expl="precondition">
   <proof prover="0" obsolete="true"><result status="valid" time="0.06" steps="101971"/></proof>
-  <proof prover="1"><undone/></proof>
-  <proof prover="2"><result status="valid" time="0.04" steps="98251"/></proof>
+  <proof prover="1" obsolete="true"><result status="failure" time="0.00"/></proof>
+  <proof prover="2" obsolete="true"><result status="valid" time="0.04" steps="98251"/></proof>
   </goal>
-  <goal name="eval&#39;vc.4" expl="postcondition" proved="true">
+  <goal name="vc1&#39;vc.4" expl="postcondition">
   <proof prover="0" obsolete="true"><result status="valid" time="0.04" steps="102647"/></proof>
-  <proof prover="1"><undone/></proof>
-  <proof prover="2"><result status="valid" time="0.02" steps="98624"/></proof>
+  <proof prover="1" obsolete="true"><result status="failure" time="0.00"/></proof>
+  <proof prover="2" obsolete="true"><result status="valid" time="0.02" steps="98624"/></proof>
   </goal>
-  <goal name="eval&#39;vc.5" expl="check division by zero" proved="true">
+  <goal name="vc1&#39;vc.5" expl="check division by zero">
   <proof prover="0" obsolete="true"><result status="valid" time="0.01" steps="6907"/></proof>
-  <proof prover="1"><undone/></proof>
-  <proof prover="2"><result status="valid" time="0.01" steps="6945"/></proof>
+  <proof prover="1" obsolete="true"><result status="failure" time="0.00"/></proof>
+  <proof prover="2" obsolete="true"><result status="valid" time="0.01" steps="6945"/></proof>
   </goal>
-  <goal name="eval&#39;vc.6" expl="postcondition" proved="true">
+  <goal name="vc1&#39;vc.6" expl="postcondition">
   <proof prover="0" obsolete="true"><result status="valid" time="0.04" steps="99379"/></proof>
-  <proof prover="1"><undone/></proof>
-  <proof prover="2"><result status="valid" time="0.02" steps="98608"/></proof>
+  <proof prover="1" obsolete="true"><result status="failure" time="0.00"/></proof>
+  <proof prover="2" obsolete="true"><result status="valid" time="0.02" steps="98608"/></proof>
   </goal>
  </transf>
  </goal>

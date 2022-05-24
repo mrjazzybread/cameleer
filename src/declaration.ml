@@ -596,6 +596,7 @@ let s_structure, s_signature =
     | Uast.Str_value (Recursive, svb_list) ->
         let rs_kind, id_fun_expr_list = id_expr_rs_kind_of_svb svb_list in
         let funs, dummy = 
+          (*Probably bad, should change*)
           let rec split l = 
             match l with 
             |[] -> [], []
@@ -609,8 +610,6 @@ let s_structure, s_signature =
         let vcs = E.mk_expr (Erec(rec_fun, E.mk_expr (Etuple []))) in 
         (O.mk_odecl Loc.dummy_position (Dlet(T.mk_id (vc()), true, Expr.RKnone, vcs)))::
         (List.map (fun (id, e) -> O.mk_odecl loc (Dlet (id, ghost, rs_kind, e))) dummy)
-        
-        
     | Uast.Str_type (rec_flag, type_decl_list)
     | Uast.Str_ghost_type (rec_flag, type_decl_list) ->
         ignore rec_flag;
