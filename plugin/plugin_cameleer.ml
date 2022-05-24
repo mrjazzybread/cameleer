@@ -69,7 +69,7 @@ let eff_kont =
     mk_field "valid" (PTtyapp (qualid_of_string "bool", [])) true true in 
   mk_type cont_name Public 2 
   (TDrecord[kont_field; one_shot])
-*)
+*)(*
 let eff_result =
   let params = mk_tvars 2 in
   let result_cons =
@@ -83,7 +83,7 @@ let eff_result =
     [eff_param; cont_param]) in 
   mk_type eff_result Public 2 
   (TDalgebraic([result_cons; request_cons]))
-(*
+*)(*
 let mk_logic_dummy name args return =
   {
     ld_loc = Loc.dummy_position;
@@ -153,10 +153,11 @@ let use_std_lib ref_decls types refs =
     Odecl.mk_cloneexport stdlib []
   in
   let use_stdlib =
-    Odecl.mk_cloneexport stdlib_fun [CStsym ( Qident (T.mk_id "state"), [], state_type)]
+    Odecl.mk_cloneexport stdlib_fun
+     [CStsym ( Qident (T.mk_id "state"), [], state_type);
+      CStsym ( Qident (T.mk_id "eff"), [], PTtyapp(Qident(T.mk_id "eff"), []))]
   in
   [imports]@ types @ ref_decls @[use_stdlib;
-  Odecl.mk_dtype dummy_pos [eff_result];
   Odecl.mk_odecl dummy_pos (apply state_term true);
   Odecl.mk_odecl dummy_pos (apply state_term false);
   ]
