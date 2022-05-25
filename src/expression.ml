@@ -194,14 +194,19 @@ let mk_id_pat (id, pat) =
 
 type pat_with_exn = { pat_term : pattern option; pat_exn_name : qualid option }
 
-let create_dummy args pty ret  _spec _p =
-  let args = List.map (fun (a, b, c, d) -> match d with |Some d -> (a, b, c, d) |_ -> assert false) args in
-  let pty = match pty with |Some pty -> pty |_ -> assert false in 
-  let dummy_ret = PTtyapp(Qident (T.mk_id "eff_result"), [pty]) in
-   
-  Eany(args, Expr.RKnone, Some dummy_ret, ret, Ity.MaskVisible, empty_spec) 
 
-  
+
+let create_dummy args pty ret spec _effs =
+  let args = List.map (fun (a, b, c, d) -> match d with |Some d -> (a, b, c, d) |_ -> assert false) args in
+  let pty = match pty with |Some pty -> pty |_ -> assert false in
+  let ret_var = "r" in 
+  let mk_res pat =
+    T.mk_pattern (Papp(Qident(T.mk_id "Result"), [pat])) in
+  let post_wrap pat t = 
+    T.mk_term (Tcase (Effect.term_of_string ret_var, [mk_res pat, t; T.mk_pattern Pwild, T.mk_term Ttrue])) in 
+  let dummy_post = List.map (fun (loc, l) -> (loc, List.map (fun (p, t) -> (T.mk_pattern (Pvar (T.mk_id ret_var)), post_wrap p t)) l)) spec.sp_post in 
+  let dummy_ret = PTtyapp(Qident (T.mk_id "eff_result"), [pty]) in
+  Eany(args, Expr.RKnone, Some dummy_ret, ret, Ity.MaskVisible, {spec with sp_post = dummy_post; sp_variant = []})
 
 let rec pattern info P.({ ppat_desc; _ } as pat) =
   match ppat_desc with
@@ -956,5 +961,5 @@ and s_value_binding info svb =
   in
   let id = id_of_pat svb.spvb_pat in
   let exp, dummy =  mk_svb_expr pexp in 
-  let l = match dummy with |Some e -> [(id, e)] |None -> [] in 
+  let l = match dummy with |Some e -> [id, e] |None -> [] in 
   (id,exp)::l

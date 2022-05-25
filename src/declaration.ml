@@ -383,7 +383,6 @@ let mk_protocol_logic name is_post args terms params =
     let valid_pat = T.mk_pattern (Ptuple (List.map T.pattern args)) in
     let branch = [valid_pat, t] in
     T.mk_term (Tcase (mk_tid (T.mk_id "request"), branch)) in
-
   let term = fold_terms terms in
   let term = 
     if is_post 

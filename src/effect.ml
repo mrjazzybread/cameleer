@@ -23,6 +23,9 @@ let map_ref_type r t =
     | _ -> t in 
   tl_ref_types := Map.add r t (!tl_ref_types)
 
+let fold_terms terms =  
+  List.fold_right  (fun t1 t2 -> T.mk_term (Tbinop(T.term ~in_pred:true true t1, DTand ,t2))) terms (T.mk_term Ttrue) 
+
 
 let get_ref_type r = 
   Map.find r (!tl_ref_types)
