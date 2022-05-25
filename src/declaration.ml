@@ -377,7 +377,7 @@ let fold_terms terms =
   List.fold_right  (fun t1 t2 -> T.mk_term (Tbinop(T.term ~in_pred:true true t1, DTand ,t2))) terms (T.mk_term Ttrue) 
 
 (*auxiliary function to create pre and post predicates for the protocol*)
-let mk_protocol_logic name args terms params =
+let mk_protocol_logic name is_post args terms params =
     (*creates a term with the following sturcture {!match request with |prot_name a1 a2 -> t |_ -> false end}*)
   let mk_match t =
     let valid_pat = T.mk_pattern (Ptuple (List.map T.pattern args)) in
@@ -385,6 +385,10 @@ let mk_protocol_logic name args terms params =
     T.mk_term (Tcase (mk_tid (T.mk_id "request"), branch)) in
 
   let term = fold_terms terms in
+  let term = 
+    if is_post 
+      then wrap true (wrap false term)
+      else wrap false term in
   O.mk_dlogic Loc.dummy_position None 
     [{  ld_loc=Loc.dummy_position;
         ld_ident= name;
@@ -406,10 +410,7 @@ let mk_fcall l =
   |[t] -> t
   | [] -> assert false in mk_fcall (List.rev l)
     
-let mk_dref id =
-  let id = T.preid id in 
-  T.mk_term (Tapply (T.mk_term (Tident (Qident (T.mk_id (Ident.op_prefix "!")))),
-  T.mk_term (Tident (Qident id)) ))
+
 
 (**Given a protocol, creates two predicates, one that
   contains the protocols precondition and another that contains
@@ -435,27 +436,27 @@ let setup_protocol prot =
   (*effect return type*)
   let t = get_effect_type p_name in
   (*gets the types of the state variables that this protocol uses by means of the writes clause*)
-  let state_types = List.map (fun id -> get_ref_type (T.preid id).id_str, T.preid id) prot.pro_writes in
+  let state_type = get_state_type () in
   (*creates the predicate arguments for the state variables*) 
-  let state_params = List.map (fun (t, id) -> mk_param id t) state_types in 
-  let old_state_params = List.map (fun (t, id) -> mk_param {id with id_str = "old_"^ id.id_str} t) state_types in 
+  let state_param = mk_param (T.mk_id "state") state_type in 
+  let old_state_param = mk_param (T.mk_id "old_state") state_type  in 
   let reply_param = mk_param (T.mk_id "reply") t in
   let eff_param_type = PTtyapp(param_name, []) in
   let effect_param = mk_param (T.mk_id "request") eff_param_type in
- 
+  
   (*definition of the predicates containing the pre and post conditions*)
+  
   let protocol_pre = 
-    mk_protocol_logic pre_name prot.pro_args prot.pro_pre (effect_param::state_params)  in 
+    mk_protocol_logic pre_name false prot.pro_args prot.pro_pre [effect_param; state_param]  in 
   let protocol_post = 
-    mk_protocol_logic post_name prot.pro_args prot.pro_post (effect_param::old_state_params@state_params@[reply_param]) in 
-  let perform_pre =
-    mk_fcall ([mk_tid pre_name; mk_tid (T.mk_id "request")]@(List.map (fun x -> mk_dref x) prot.pro_writes)) in  
-  let perform_post =
-    mk_fcall ([mk_tid post_name; mk_tid (T.mk_id "request")]@
-    (List.map (fun x -> T.mk_term (Tat(mk_dref x, T.mk_id Dexpr.old_label))) prot.pro_writes)@
-    (List.map (fun x -> mk_dref x) prot.pro_writes)@[mk_tid (T.mk_id "result")])
-     in
+    mk_protocol_logic post_name true prot.pro_args prot.pro_post [effect_param;old_state_param; state_param; reply_param] in 
+  
   (*definition of the abstract perform function*)
+  let perform_pre =
+    mk_fcall [mk_tid pre_name; mk_tid (T.mk_id "request"); mk_state_term false] in  
+  let perform_post =
+    mk_fcall [mk_tid post_name; mk_tid (T.mk_id "request"); mk_state_term true; mk_state_term false; mk_tid (T.mk_id "result")]
+     in
   let spec = Vspec.mk_spec perform_pre perform_post (List.map (fun s -> mk_tid (T.preid s)) prot.pro_writes) in 
   let protocol_perfrom = Eany (
       [effect_param], Expr.RKnone, Some t, T.mk_pattern Pwild, Ity.MaskVisible, spec) in   

@@ -8,7 +8,6 @@ module T = Uterm
 module S = Vspec
 module P = Parsetree
 module Set = Stdlib.Set.Make(String)
-open Effect
 
 let performed_effects : ((Set.t) ref) = ref Set.empty
 
@@ -195,11 +194,12 @@ let mk_id_pat (id, pat) =
 
 type pat_with_exn = { pat_term : pattern option; pat_exn_name : qualid option }
 
-let create_dummy args pty ret  _spec p =
+let create_dummy args pty ret  _spec _p =
   let args = List.map (fun (a, b, c, d) -> match d with |Some d -> (a, b, c, d) |_ -> assert false) args in
-  let s = match List.hd p with |Uast.Qpreid id -> id.pid_str |_ -> assert false in 
-  let _effect_type = get_effect_type s in
-  Eany(args, Expr.RKnone,pty, ret, Ity.MaskVisible, empty_spec) 
+  let pty = match pty with |Some pty -> pty |_ -> assert false in 
+  let dummy_ret = PTtyapp(Qident (T.mk_id "eff_result"), [pty]) in
+   
+  Eany(args, Expr.RKnone, Some dummy_ret, ret, Ity.MaskVisible, empty_spec) 
 
   
 

@@ -27,7 +27,7 @@ module Stdlib_fun
 
   type lambda 'a 'b
   type continuation 'a 'b = {ghost k : lambda 'a 'b; ghost mutable valid : bool}
-  type eff_result 'a 'b = Result 'a | Request eff (continuation 'b 'a) 
+  type eff_result 'a = Result 'a | Request eff
 
   type state
 
@@ -42,7 +42,7 @@ module Stdlib_fun
   let function snd (x: ('a, 'b)) : 'b =
     let _, r = x in r
 
-  type result 'a 'b = Ok 'a | Error 'b
+  type result 'a 'b = Ok 'a | Error 'b 
 
   function (%) (x y: int) : int = mod x y
 

@@ -155,7 +155,8 @@ let use_std_lib ref_decls types refs =
   let use_stdlib =
     Odecl.mk_cloneexport stdlib_fun
      [CStsym ( Qident (T.mk_id "state"), [], state_type);
-      CStsym ( Qident (T.mk_id "eff"), [], PTtyapp(Qident(T.mk_id "eff"), []))]
+      CStsym ( Qident (T.mk_id "eff"), [], PTtyapp(Qident(T.mk_id "eff"), []));
+      CSprop ( Decl.Paxiom ) ]
   in
   [imports]@ types @ ref_decls @[use_stdlib;
   Odecl.mk_odecl dummy_pos (apply state_term true);

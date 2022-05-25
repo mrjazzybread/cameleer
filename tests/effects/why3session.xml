@@ -6,17 +6,11 @@
 <prover id="1" name="Alt-Ergo" version="2.2.0" timelimit="5" steplimit="0" memlimit="1000"/>
 <prover id="2" name="Z3" version="4.8.14" timelimit="5" steplimit="0" memlimit="1000"/>
 <prover id="3" name="Z3" version="4.8.14" alternative="noBV" timelimit="5" steplimit="0" memlimit="1000"/>
-<file format="ocaml">
+<file format="ocaml" proved="true">
 <path name=".."/><path name="effects.ml"/>
-<theory name="Effects">
- <goal name="same_location_eq">
- </goal>
- <goal name="compare_pre_order">
- </goal>
- <goal name="Sys.non_neg_max_array_length">
- </goal>
+<theory name="Effects" proved="true">
  <goal name="vc1&#39;vc" expl="VC for vc1" proved="true">
- <proof prover="1"><result status="valid" time="0.04" steps="130"/></proof>
+ <proof prover="1" obsolete="true"><result status="valid" time="0.04" steps="130"/></proof>
  <transf name="smoke_detector_deep" >
   <goal name="vc1&#39;vc.0" expl="VC for vc1">
   <proof prover="1" obsolete="true"><result status="failure" time="0.00"/></proof>
@@ -24,48 +18,54 @@
    <goal name="vc1&#39;vc.0.0" expl="VC for vc1">
    <proof prover="0" obsolete="true"><result status="timeout" time="5.00" steps="9496030"/></proof>
    <proof prover="1"><result status="unknown" time="0.12"/></proof>
-   <proof prover="2"><undone/></proof>
-   <proof prover="3"><undone/></proof>
+   <proof prover="2" obsolete="true"><result status="failure" time="0.00"/></proof>
+   <proof prover="3" obsolete="true"><result status="failure" time="0.00"/></proof>
    </goal>
   </transf>
   </goal>
  </transf>
- <transf name="split_vc" >
-  <goal name="vc1&#39;vc.0" expl="postcondition">
+ <transf name="split_vc" proved="true" >
+  <goal name="vc1&#39;vc.0" expl="postcondition" proved="true">
   <proof prover="0" obsolete="true"><result status="valid" time="0.04" steps="98820"/></proof>
-  <proof prover="1" obsolete="true"><result status="failure" time="0.00"/></proof>
+  <proof prover="1"><result status="valid" time="0.01" steps="8"/></proof>
   <proof prover="2" obsolete="true"><result status="valid" time="0.02" steps="94959"/></proof>
   </goal>
-  <goal name="vc1&#39;vc.1" expl="variant decrease">
+  <goal name="vc1&#39;vc.1" expl="variant decrease" proved="true">
   <proof prover="0" obsolete="true"><result status="valid" time="0.05" steps="99550"/></proof>
-  <proof prover="1" obsolete="true"><result status="failure" time="0.00"/></proof>
+  <proof prover="1"><result status="valid" time="0.01" steps="32"/></proof>
   <proof prover="2" obsolete="true"><result status="valid" time="0.03" steps="95770"/></proof>
   </goal>
-  <goal name="vc1&#39;vc.2" expl="variant decrease">
+  <goal name="vc1&#39;vc.2" expl="variant decrease" proved="true">
   <proof prover="0" obsolete="true"><result status="valid" time="0.04" steps="99564"/></proof>
-  <proof prover="1" obsolete="true"><result status="failure" time="0.00"/></proof>
+  <proof prover="1"><result status="valid" time="0.01" steps="34"/></proof>
   </goal>
-  <goal name="vc1&#39;vc.3" expl="precondition">
+  <goal name="vc1&#39;vc.3" expl="precondition" proved="true">
   <proof prover="0" obsolete="true"><result status="valid" time="0.06" steps="101971"/></proof>
-  <proof prover="1" obsolete="true"><result status="failure" time="0.00"/></proof>
+  <proof prover="1"><result status="valid" time="0.03" steps="51"/></proof>
   <proof prover="2" obsolete="true"><result status="valid" time="0.04" steps="98251"/></proof>
   </goal>
-  <goal name="vc1&#39;vc.4" expl="postcondition">
+  <goal name="vc1&#39;vc.4" expl="postcondition" proved="true">
   <proof prover="0" obsolete="true"><result status="valid" time="0.04" steps="102647"/></proof>
-  <proof prover="1" obsolete="true"><result status="failure" time="0.00"/></proof>
+  <proof prover="1"><result status="valid" time="0.01" steps="40"/></proof>
   <proof prover="2" obsolete="true"><result status="valid" time="0.02" steps="98624"/></proof>
   </goal>
-  <goal name="vc1&#39;vc.5" expl="check division by zero">
+  <goal name="vc1&#39;vc.5" expl="check division by zero" proved="true">
   <proof prover="0" obsolete="true"><result status="valid" time="0.01" steps="6907"/></proof>
-  <proof prover="1" obsolete="true"><result status="failure" time="0.00"/></proof>
+  <proof prover="1"><result status="valid" time="0.01" steps="14"/></proof>
   <proof prover="2" obsolete="true"><result status="valid" time="0.01" steps="6945"/></proof>
   </goal>
-  <goal name="vc1&#39;vc.6" expl="postcondition">
+  <goal name="vc1&#39;vc.6" expl="postcondition" proved="true">
   <proof prover="0" obsolete="true"><result status="valid" time="0.04" steps="99379"/></proof>
-  <proof prover="1" obsolete="true"><result status="failure" time="0.00"/></proof>
+  <proof prover="1"><result status="valid" time="0.02" steps="16"/></proof>
   <proof prover="2" obsolete="true"><result status="valid" time="0.02" steps="98608"/></proof>
   </goal>
  </transf>
+ </goal>
+ <goal name="compare_pre_order">
+ </goal>
+ <goal name="same_location_eq">
+ </goal>
+ <goal name="Sys.non_neg_max_array_length">
  </goal>
 </theory>
 </file>

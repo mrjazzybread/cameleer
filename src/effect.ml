@@ -1,5 +1,6 @@
 
 module Map = Map.Make(String)
+module T = Uterm
 open Why3.Ptree
 let eff_name = "eff"
 
@@ -24,8 +25,35 @@ let map_ref_type r t =
 
 
 let get_ref_type r = 
-
   Map.find r (!tl_ref_types)
 
 let get_effect_type e = 
   Map.find e (!effect_types)
+
+let get_state_type () =
+  let seq = Map.to_seq !tl_ref_types in
+  let ptyl = List.of_seq (Seq.map (fun (_, pty) -> pty) seq) in 
+  PTtuple ptyl 
+
+let term_of_string s =
+  T.mk_term (Tident (Qident (T.mk_id s)))
+
+let pattern_of_string s =
+  T.mk_pattern (Pvar s)
+
+let mk_state_term is_old =
+  let seq = Map.to_seq !tl_ref_types in
+  let tl = List.of_seq (Seq.map (fun (s, _) -> 
+    let id = term_of_string s in 
+    let bang = term_of_string (Why3.Ident.op_prefix "!") in 
+    let t = T.mk_term (Tapply (bang, id)) in 
+    if is_old then T.mk_term (Tat(t, T.mk_id "'Old")) else t) seq) in 
+  T.mk_term (Ttuple tl)
+
+let wrap is_old t =
+  let s = if is_old then "old_state" else "state" in 
+  let prefix = if is_old then "old_" else "" in 
+  let seq = Map.to_seq !tl_ref_types in
+  let vl = List.of_seq (Seq.map (fun (s, _) -> T.mk_pattern (Pvar (T.mk_id (prefix ^ s)))) seq) in 
+  let pat = T.mk_pattern (Ptuple vl) in 
+  T.mk_term (Tcase (term_of_string s, [pat, t]))
