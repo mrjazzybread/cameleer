@@ -103,6 +103,14 @@ let rm_old t =
       Tident (Qident {id with id_str="old_" ^id.id_str})
   |_ -> assert false 
 
+
+let mk_fcall l = 
+  let rec mk_fcall l = 
+  match l with  
+  |t1::(_::_ as xs) -> mk_term (Tapply (mk_fcall xs, t1))
+  |[t] -> t
+  | [] -> assert false in mk_fcall (List.rev l)
+
 let is_deref q = 
   match q with 
   |Uast.Qpreid {pid_str;_} -> pid_str = prefix "!"

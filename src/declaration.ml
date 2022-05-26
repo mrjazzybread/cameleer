@@ -402,12 +402,7 @@ let mk_param id t =
   
 (*given a list of terms, the first being a function and the following its arguments,
     creates an application of that function*)
-let mk_fcall l = 
-  let rec mk_fcall l = 
-  match l with  
-  |t1::(_::_ as xs) -> T.mk_term (Tapply (mk_fcall xs, t1))
-  |[t] -> t
-  | [] -> assert false in mk_fcall (List.rev l)
+
     
 
 
@@ -452,9 +447,9 @@ let setup_protocol prot =
   
   (*definition of the abstract perform function*)
   let perform_pre =
-    mk_fcall [mk_tid pre_name; mk_tid (T.mk_id "request"); mk_state_term false] in  
+    T.mk_fcall [mk_tid pre_name; mk_tid (T.mk_id "request"); mk_state_term false] in  
   let perform_post =
-    mk_fcall [mk_tid post_name; mk_tid (T.mk_id "request"); mk_state_term true; mk_state_term false; mk_tid (T.mk_id "result")]
+    T.mk_fcall [mk_tid post_name; mk_tid (T.mk_id "request"); mk_state_term true; mk_state_term false; mk_tid (T.mk_id "result")]
      in
   let spec = Vspec.mk_spec perform_pre perform_post (List.map (fun s -> mk_tid (T.preid s)) prot.pro_writes) in 
   let protocol_perfrom = Eany (

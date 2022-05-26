@@ -20,3 +20,4 @@ val pty : Uast.pty -> Ptree.pty
 val ty : Ttypes.ty -> Ptree.pty
 val pattern : Uast.pattern -> Ptree.pattern
 val term : ?in_pred:bool -> bool -> Uast.term -> Ptree.term
+val mk_fcall : Ptree.term list -> Ptree.term 

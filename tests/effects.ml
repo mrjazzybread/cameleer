@@ -34,5 +34,6 @@ let rec eval (e : exp) : int =
 (*@
    ensures eval_ind (!curr_exp) = result
    performs Div_by_zero
+   modifies curr_exp
    variant e
 *)
