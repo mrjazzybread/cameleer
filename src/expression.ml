@@ -194,54 +194,41 @@ let mk_id_pat (id, pat) =
 
 type pat_with_exn = { pat_term : pattern option; pat_exn_name : qualid option }
 
-let mk_res pat =
-  T.mk_pattern (Papp(Qident(T.mk_id "Result"), [pat]))
-
 (** Generates the postcondtion clause which states what effects can be performed, as well as
     that the protocol precondition is true when the corresponding effect is performed. 
     @param effs the effects the function performs
     @returns a Why3 postcondition
     *)
-let _gen_eff_post effs=
-  let r_id = T.mk_id "r" in 
-  let ret = T.mk_term (Tident (Qident r_id)) in
-  let mk_req pat =
-    T.mk_pattern (Papp(Qident(T.mk_id "Request"), [pat])) in
-  let case_list = List.map (fun eff -> 
+let gen_eff_post effs=
+  List.map (fun eff -> 
       match eff with 
       |Qident id -> 
         let v = T.mk_pattern (Pvar(T.mk_id "v")) in 
         let v_term = T.mk_term (Tident (Qident (T.mk_id "v"))) in
-        let eff_pat = T.mk_pattern (Papp(eff, [v])) in
-        let pat = mk_req eff_pat in 
         let pre_name = Qident (T.mk_id ("pre_" ^ id.id_str)) in 
+        let pre_term = T.mk_term (Tident pre_name) in 
         let state_term = Effect.mk_state_term false in 
-        pat, T.mk_fcall [T.mk_term(Tident pre_name);v_term; state_term]
+        Loc.dummy_position, [eff, Some(v, T.mk_fcall [pre_term; v_term; state_term])]
       |_ -> assert false
-    ) effs in 
-  let bottom = T.mk_pattern Pwild, T.mk_term (Tfalse) in 
-  let res_case = (mk_res (T.mk_pattern Pwild)), T.mk_term Ttrue in 
-  Loc.dummy_position, 
-    [T.mk_pattern (Pvar r_id), 
-    T.mk_term (Tcase (ret, res_case::case_list@[bottom]))]
+    ) effs 
+
 
 
 (** Only to be used for functions with a non-empty performs caluse.
-    Assuming a function that has a return type {!t}, postconditions {!p1, p2, ..}, 
-    performs effects {!E1, E2 ..}.
-    creates a new function that returns {!t eff_return}, has postconditions
-    {! match r with |Result result -> p1, match r with |Result result -> p2 ...}.
-    Its postcondition will also reflect the precondition of the protocols of the performed effects. 
-    by adding the following clause 
-    {!match r with |Result _ -> true |Request E1 v -> pre_E1 v |Request E2 v -> pre_E2 v ... |_ -> false}
+    Creates a dummy function that throws an exception for each effect it perfroms. 
+    We also create an exceptional postcondition for each performed effect stating that 
+    the protocol's precondition is met. We also remove any variant clauses, since functions without implementations
+    don't need them.}
 
     For now, we will assume that the corresponding Gospel program will have a modifies clause, since otherwise
     we would have to build one automatically.
     *)
-let create_dummy args pty ret spec _effs =
+let create_dummy args pty ret spec effs =
   let args = List.map (fun (a, b, c, d) -> match d with |Some d -> (a, b, c, d) |_ -> assert false) args in
   let pty = match pty with |Some pty -> pty |_ -> assert false in
-  Eany(args, Expr.RKnone, Some pty, ret, Ity.MaskVisible, {spec with sp_xpost = spec.sp_xpost; sp_variant = []})
+  let eff_post = gen_eff_post effs in 
+  Eany(args, Expr.RKnone,
+     Some pty, ret, Ity.MaskVisible, {spec with sp_xpost = eff_post@spec.sp_xpost; sp_variant = []})
 
 let rec pattern info P.({ ppat_desc; _ } as pat) =
   match ppat_desc with
