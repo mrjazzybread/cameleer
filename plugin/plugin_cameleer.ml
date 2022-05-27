@@ -155,7 +155,7 @@ let use_std_lib ref_decls types refs =
   let use_stdlib =
     Odecl.mk_cloneexport stdlib_fun
      [CStsym ( Qident (T.mk_id "state"), [], state_type);
-      CStsym ( Qident (T.mk_id "eff"), [], PTtyapp(Qident(T.mk_id "eff"), []));
+      CStsym ( Qident (T.mk_id "exn"), [], PTtyapp(Qident(T.mk_id "exn"), []));
       CSprop ( Decl.Paxiom ) ]
   in
   [imports]@ types @ ref_decls @[use_stdlib;
@@ -292,19 +292,18 @@ let mk_refine_modules info top_mod_name =
   in
   Hashtbl.iter mk_module info.Odecl.info_refinement
 
-(** Auxiliary function to partition a list of GOSPEL toplevel declarations into 
-    a left list with all the effect declarations, which will be in the form of
-    type extensions, and a right list with the rest of the program
+(** Checks if a decleration is an effect declaration. As of OCaml 5.0.0, the only way to do this is by
+    extending the {!eff} type.   
 
-    @param eff the top level declaration which we will add to either the left or right list 
+    @param d the top level declaration which we will add to either the left or right list 
     @result a type extension, if the declaration was an effect, marked for the left list, 
       or a top level declaration marked for the right list.
 *)
 let is_effect d =
   match d.sstr_desc with 
   |Str_typext t
-    when Longident.flatten t.ptyext_path.txt = ["eff"] -> Either.Left t
-  |_ -> Either.Right d
+    when Longident.flatten t.ptyext_path.txt = ["eff"] -> Some t
+  |_ -> None
 
 (**Turns an OCaml constructor into a Why3 constructor
       @param cons the arguments of the constructor (records not supported)
@@ -348,19 +347,18 @@ let mk_effect_type effects =
     td_def = eff_type
   }] in
 match effects with
-|[] -> [], mk_decl eff_name (TDrecord []) Abstract
+|[] -> [], mk_decl exn_name (TDrecord []) Abstract
 |_ ->
   let cons_list = List.flatten (List.map (fun e -> e.Ppxlib.ptyext_constructors) effects) in 
   let eff_list = List.map eff_of_cons cons_list in 
   let eff_type = TDalgebraic (List.map (fun (x, _) -> x) eff_list) in
-  
   let param_types = List.map (fun ((_, id, _), args) -> 
       mk_decl ("param_" ^ id.id_str) (TDalias (PTtuple args)) Public) eff_list  in
-  let decl = mk_decl eff_name eff_type Public in
+  let decl = mk_decl exn_name eff_type Public in
    param_types, decl
 
 (** Seperates the program into two lists, one with declerations of variables of type {'a !ref} and another with the remaining declerations
-We also assume that all references are declared at the start of the program. We also map the name of each reference to its type
+We also assume that all references are declared at the start of the program. We also map the name of each reference to its type in a global variable.
 
     @param p list of Gospel definitions
     @returns l1, l2 where l1 is a list of reference definitions and l2 are the remaining program definitions*)
@@ -393,9 +391,11 @@ let read_channel env path file c =
   open_module id;
   (* This is the beginning of the top module construction *)
   let info = mk_info () in
-  let effects, program = List.partition_map is_effect f in
+  let effects = List.filter_map is_effect f in
   (*The generated program will have the following structure:
-    type eff = ... 
+    imports  
+  
+    type exn = ... 
     
     user defined types 
     
@@ -408,7 +408,7 @@ let read_channel env path file c =
   let types, program = 
     List.partition 
       (fun x -> match x.sstr_desc with |Uast.Str_type _ -> true |_ -> false) 
-      program in 
+      f in 
   let refs, program = add_state_var program in
   let types = Declaration.s_structure info types in 
   let refs = Declaration.s_structure info refs in 

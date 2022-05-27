@@ -202,7 +202,7 @@ let mk_res pat =
     @param effs the effects the function performs
     @returns a Why3 postcondition
     *)
-let gen_eff_post effs=
+let _gen_eff_post effs=
   let r_id = T.mk_id "r" in 
   let ret = T.mk_term (Tident (Qident r_id)) in
   let mk_req pat =
@@ -238,16 +238,10 @@ let gen_eff_post effs=
     For now, we will assume that the corresponding Gospel program will have a modifies clause, since otherwise
     we would have to build one automatically.
     *)
-let create_dummy args pty ret spec effs =
+let create_dummy args pty ret spec _effs =
   let args = List.map (fun (a, b, c, d) -> match d with |Some d -> (a, b, c, d) |_ -> assert false) args in
   let pty = match pty with |Some pty -> pty |_ -> assert false in
-  let ret_var = "r" in 
-  let post_wrap pat t = 
-    T.mk_term (Tcase (Effect.term_of_string ret_var, [mk_res pat, t; T.mk_pattern Pwild, T.mk_term Ttrue])) in 
-  let dummy_post = List.map (fun (loc, l) -> (loc, List.map (fun (p, t) -> (T.mk_pattern (Pvar (T.mk_id ret_var)), post_wrap p t)) l)) spec.sp_post in 
-  let dummy_post = gen_eff_post effs::dummy_post in 
-  let dummy_ret = PTtyapp(Qident (T.mk_id "eff_result"), [pty]) in
-  Eany(args, Expr.RKnone, Some dummy_ret, ret, Ity.MaskVisible, {spec with sp_post = dummy_post; sp_variant = []})
+  Eany(args, Expr.RKnone, Some pty, ret, Ity.MaskVisible, {spec with sp_xpost = spec.sp_xpost; sp_variant = []})
 
 let rec pattern info P.({ ppat_desc; _ } as pat) =
   match ppat_desc with
@@ -752,7 +746,7 @@ let rec expression_desc info expr_loc expr_desc =
   | Sexp_letexception (exn_constructor, expr) ->
       let id, pty, mask = exception_constructor exn_constructor in
       mk_eexn id pty mask (expression info expr)
-  | Sexp_handler(_, _, _) -> assert false
+  | Sexp_handler(e, cases, spec) -> handler info (expression info e) cases spec
   | Sexp_coerce _ -> assert false (* TODO *)
   | Sexp_send _ -> assert false (* TODO *)
   | Sexp_new _ -> assert false (* TODO *)
@@ -769,6 +763,19 @@ let rec expression_desc info expr_loc expr_desc =
   | Sexp_unreachable -> assert false (* TODO *)
   | Sexp_letop _ -> assert false
 (* TODO *)
+
+and handler _info exp _cases _ =
+
+let _handler_wrap eff_branch = 
+    let res = T.mk_id "r" in
+    let qres = Qident res in 
+    let result_cons = Qident (T.mk_id "Result") in 
+    let res_exp = mk_expr (Eident (qres)) in 
+    let res_pat = T.mk_pattern (Pvar res) in  
+    let result_pat = T.mk_pattern (Papp(result_cons, [res_pat])) in 
+    mk_expr (Ematch(exp, [result_pat, res_exp; eff_branch], [])) in 
+
+assert false 
 
 and expression info Uast.({ spexp_desc; spexp_attributes; _ } as e) =
   let expr_loc = T.location e.spexp_loc in

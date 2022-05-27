@@ -23,15 +23,14 @@ module Stdlib_fun
     returns { _ -> false }
   = raise (Invalid_argument s)
 
-  type eff
+  type exn
 
   type lambda 'a 'b
   type continuation 'a 'b = {ghost k : lambda 'a 'b; ghost mutable valid : bool}
-  type eff_result 'a = Result 'a | Request eff
 
   type state
 
-  predicate pre (lambda 'a 'b) ('a) state
+  predicate pre (lambda 'a 'b) 'a state
   predicate post (lambda 'a 'b) 'a state state 'b  
 
   val ignore (_: 'a) : unit

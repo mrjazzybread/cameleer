@@ -2,7 +2,7 @@
 module Map = Map.Make(String)
 module T = Uterm
 open Why3.Ptree
-let eff_name = "eff"
+let exn_name = "exn"
 
 let n_vcs = ref 0
 
@@ -17,6 +17,7 @@ let map_effect e t =
   effect_types := Map.add e t (!effect_types)
 
 let map_ref_type r t =
+  print_endline r;
   let t = 
     match t with 
     |PTtyapp(Qident id, l) -> PTtyapp(Qident({id with id_loc = Why3.Loc.dummy_position}), l)
@@ -49,7 +50,7 @@ let mk_state_term is_old =
     let bang = term_of_string (Why3.Ident.op_prefix "!") in 
     let t = T.mk_term (Tapply (bang, id)) in 
     if is_old then T.mk_term (Tat(t, T.mk_id "'Old")) else t) seq) in 
-  T.mk_term (Ttuple tl)
+    T.mk_term (Ttuple tl)
 
 let wrap is_old t =
   let s = if is_old then "old_state" else "state" in 

@@ -1,7 +1,9 @@
+let curr_exp : exp ref = ref (Const 0) 
+
 type _ eff += Div_by_zero : int eff
 
 type exp = Const of int | Div of exp * exp
-let curr_exp : exp ref = ref (Const 0) 
+
 
 (*@function eval_ind (exp : exp) : int =
 match exp with
@@ -37,3 +39,4 @@ let rec eval (e : exp) : int =
    modifies curr_exp
    variant e
 *)
+

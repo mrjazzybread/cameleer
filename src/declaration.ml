@@ -20,7 +20,7 @@ let _mk_const svb_list expr =
   let mk_spec acc Uast.{ spvb_vspec; _ } =
     let s = match spvb_vspec with None -> empty_spec | Some s -> vspec s in
     spec_union acc s
-  in
+  in  
   let spec = List.fold_left mk_spec empty_spec svb_list in
   let d = Efun ([], None, p, Ity.MaskVisible, spec, expr) in
   let d = Eattr (ATstr Vc.wb_attr, E.mk_expr d) in
@@ -399,12 +399,28 @@ let mk_protocol_logic name is_post args terms params =
 let mk_param id t =
   Loc.dummy_position, Some id, false, t
 
-  
-(*given a list of terms, the first being a function and the following its arguments,
-    creates an application of that function*)
 
-    
+(** Checks if a decleration is an effect decleration. As of OCaml 5.0.0, the only way to do this is by
+    extending the {!eff} type.   
 
+    @param d the top level declaration which we will add to either the left or right list 
+    @result a type extension, if the declaration was an effect, marked for the left list, 
+      or a top level declaration marked for the right list.
+*)
+let is_effect t =
+    Astlib.Longident.flatten t.ptyext_path.txt = ["eff"] 
+
+let exn_of_eff t =  
+  let exn_of_cons e = 
+    match e.Ppxlib.pext_kind with 
+    |Ppxlib.Pext_decl (_, args, Some ({ptyp_desc = Ptyp_constr (_, [t]);_})) ->
+      let () = map_effect e.Ppxlib.pext_name.txt (E.core_type t) in
+      let loc = T.location e.pext_loc in 
+      let id = T.mk_id ~id_loc:(T.location e.pext_name.loc) e.pext_name.txt in 
+      let tuple_of l = List.map E.core_type (match l with | Ppxlib.Pcstr_tuple l -> l|_-> assert false) in 
+      Odecl.mk_dexn loc id (PTtuple (tuple_of args)) Ity.MaskVisible
+    |_ -> assert false in 
+  List.map exn_of_cons t.ptyext_constructors
 
 (**Given a protocol, creates two predicates, one that
   contains the protocols precondition and another that contains
@@ -639,6 +655,8 @@ let s_structure, s_signature =
     | Uast.Str_protocol p -> setup_protocol p
     | Uast.Str_ghost_val _ -> assert false (* TODO *)
     | Uast.Str_attribute _ -> []
+    | Uast.Str_typext t when is_effect t -> 
+      exn_of_eff t
     | _ -> assert false
   (* TODO *)
   and s_module_binding info { spmb_name = { txt; loc }; spmb_expr; spmb_loc; _ }
