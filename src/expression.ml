@@ -622,6 +622,7 @@ let rec expression_desc info expr_loc expr_desc =
     | Uast.Sexp_ident { txt = Lident "raise"; _ } -> true
     | _ -> false
   in
+
   match expr_desc with
   | Uast.Sexp_ident { txt; loc } ->
       Eident (longident ~id_loc:(T.location loc) txt)
@@ -664,7 +665,8 @@ let rec expression_desc info expr_loc expr_desc =
       apply_raise info arg.spexp_desc
   | Uast.Sexp_apply ({ spexp_desc = Sexp_ident s; _ }, arg_expr_list) ->
       let id_loc = T.location s.loc in
-      mk_eidapp (longident ~id_loc s.txt) (List.map arg_expr arg_expr_list)
+      let txt = if s.txt = Lident "continue" then Lident "contin" else s.txt in
+      mk_eidapp (longident ~id_loc txt) (List.map arg_expr arg_expr_list)
   | Uast.Sexp_apply (expr, arg_expr_list) ->
       let mk_app acc (_, e) = mk_expr (Eapply (acc, expression info e)) in
       let e_acc = expression info expr in
@@ -752,18 +754,50 @@ let rec expression_desc info expr_loc expr_desc =
   | Sexp_letop _ -> assert false
 (* TODO *)
 
-and handler _info exp _cases _ =
+(** Translates an effect handler into a corresponding WhyML representation. 
+    Simply put, we transform every branch into an exception branch, 
+    each branch will have defined a continuation with the same postcondition as the handler
+    and the same precondition as the corresponding protocol.
+    
+    @param try_exp the expression which may perform effect
+    @param cases each branch in the handler
+    @param spec the handler's specification*)
+and handler info try_exp cases spec =
+let spec = match spec with |Some s -> s |_ -> assert false in 
+let unit_param = Loc.dummy_position, None, false, PTtuple[] in
+(** Translates a single branch of the effect handler
+    The translation will be almost verbatim with the only notable differences being in 
+    the creation of the continuation: This will be done using a function that returns a 
+    continuation with the proper specification.
+    
+    @param k the name of the continuation
+    @param case the branch we will translate*)
+let effect_branch (k, case) = 
+  let exp = expression info case.Uast.spc_rhs in 
+  match case.spc_lhs.ppat_desc with 
+  |Ppat_construct(l, None) -> 
+    let q = (longident ~id_loc:(T.location l.loc) l.txt) in
+    let pat = T.mk_pattern (Ptree.Ptuple []) in
+    let eff_name = match q with |Qident id -> id.id_str |_ -> assert false in 
+    
+    let eff_type = Effect.get_effect_type eff_name in 
+    let ret = T.pty spec.sp_returns in 
 
-let _handler_wrap eff_branch = 
-    let res = T.mk_id "r" in
-    let qres = Qident res in 
-    let result_cons = Qident (T.mk_id "Result") in 
-    let res_exp = mk_expr (Eident (qres)) in 
-    let res_pat = T.mk_pattern (Pvar res) in  
-    let result_pat = T.mk_pattern (Papp(result_cons, [res_pat])) in 
-    mk_expr (Ematch(exp, [result_pat, res_exp; eff_branch], [])) in 
+    (*function that creates the continuation*)
+    let kont_type = Some (PTtyapp(Qident(T.mk_id "continuation"), [eff_type; ret])) in 
+    let kont_gen = Eany ([unit_param], Expr.RKnone, kont_type, T.mk_pattern Pwild, Ity.MaskVisible, Vspec.empty_spec) in 
+    
+    (*calling the function that creates the continuation*)
+    let kont_gen_id = T.mk_id ("gen_" ^ k) in 
+    let kont_gen_exp = Eident (Qident kont_gen_id) in 
+    let kont = Eapply(mk_expr kont_gen_exp, mk_expr (Etuple[])) in
+    let exp = Elet (T.mk_id k, false, Expr.RKnone, mk_expr kont, exp) in
+    
+    let exp = Elet (kont_gen_id, false, Expr.RKnone, mk_expr kont_gen,mk_expr exp) in 
+    (q, Some pat, mk_expr exp) 
+  |_ -> failwith "invalid case" in 
+(Ematch (try_exp, [], List.map effect_branch cases))
 
-assert false 
 
 and expression info Uast.({ spexp_desc; spexp_attributes; _ } as e) =
   let expr_loc = T.location e.spexp_loc in
