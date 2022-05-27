@@ -4,9 +4,9 @@
 <why3session shape_version="6">
 <prover id="0" name="Z3" version="4.8.14" timelimit="5" steplimit="0" memlimit="1000"/>
 <prover id="1" name="Alt-Ergo" version="2.2.0" timelimit="5" steplimit="0" memlimit="1000"/>
-<file format="ocaml" proved="true">
+<file format="ocaml">
 <path name=".."/><path name="effects.ml"/>
-<theory name="Effects" proved="true">
+<theory name="Effects">
  <goal name="vc1&#39;vc" expl="VC for vc1" proved="true">
  <transf name="split_vc" proved="true" >
   <goal name="vc1&#39;vc.0" expl="postcondition" proved="true">
@@ -32,9 +32,17 @@
   </goal>
  </transf>
  </goal>
- <goal name="main&#39;vc" expl="VC for main" proved="true">
+ <goal name="main&#39;vc" expl="VC for main">
  <proof prover="0" obsolete="true"><result status="timeout" time="5.00"/></proof>
- <proof prover="1"><result status="valid" time="0.02" steps="2"/></proof>
+ <proof prover="1"><result status="unknown" time="0.30"/></proof>
+ <transf name="split_vc" >
+  <goal name="main&#39;vc.0" expl="postcondition">
+  </goal>
+  <goal name="main&#39;vc.1" expl="precondition">
+  </goal>
+  <goal name="main&#39;vc.2" expl="postcondition">
+  </goal>
+ </transf>
  </goal>
 </theory>
 </file>

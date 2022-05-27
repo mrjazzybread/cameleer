@@ -765,11 +765,14 @@ let rec expression_desc info expr_loc expr_desc =
 and handler info try_exp cases spec =
 let spec = match spec with |Some s -> s |_ -> assert false in 
 let unit_param = Loc.dummy_position, None, false, PTtuple[] in
-(** Translates a single branch of the effect handler
-    The translation will be almost verbatim with the only notable differences being in 
+
+(* Translates a single branch of the effect handler
+    The handler will be translated almost verbatim with the only notable differences being in 
     the creation of the continuation: This will be done using a function that returns a 
     continuation with the proper specification.
-    
+
+    This handler will then be wrapped in a function that receives unit that will have the
+    same postconditions as the GOSPEL program. This function will then be immediately called
     @param k the name of the continuation
     @param case the branch we will translate*)
 let effect_branch (k, case) = 
@@ -796,8 +799,12 @@ let effect_branch (k, case) =
     let exp = Elet (kont_gen_id, false, Expr.RKnone, mk_expr kont_gen,mk_expr exp) in 
     (q, Some pat, mk_expr exp) 
   |_ -> failwith "invalid case" in 
-(Ematch (try_exp, [], List.map effect_branch cases))
-
+let unit_binder = Loc.dummy_position, None, false, Some (PTtuple[]) in 
+let mk_post t = Loc.dummy_position, [T.mk_pattern (Pvar (T.mk_id "result")), T.term true t] in 
+let handler_spec = 
+  {Vspec.empty_spec with sp_post = List.map (fun x -> mk_post x) spec.sp_handle_post}  in 
+let m = (Ematch (try_exp, [], List.map effect_branch cases)) in 
+let f = Efun([unit_binder], None, T.mk_pattern Pwild, Ity.MaskVisible, handler_spec, mk_expr m) in Eapply (mk_expr f, mk_expr (Etuple []))
 
 and expression info Uast.({ spexp_desc; spexp_attributes; _ } as e) =
   let expr_loc = T.location e.spexp_loc in
