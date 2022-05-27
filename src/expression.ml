@@ -216,9 +216,9 @@ let gen_eff_post effs=
 
 (** Only to be used for functions with a non-empty performs caluse.
     Creates a dummy function that throws an exception for each effect it perfroms. 
-    We also create an exceptional postcondition for each performed effect stating that 
+    We do this by creating an exceptional postcondition for each performed effect stating that 
     the protocol's precondition is met. We also remove any variant clauses, since functions without implementations
-    don't need them.}
+    don't need them.
 
     For now, we will assume that the corresponding Gospel program will have a modifies clause, since otherwise
     we would have to build one automatically.
@@ -228,7 +228,8 @@ let create_dummy args pty ret spec effs =
   let pty = match pty with |Some pty -> pty |_ -> assert false in
   let eff_post = gen_eff_post effs in 
   Eany(args, Expr.RKnone,
-     Some pty, ret, Ity.MaskVisible, {spec with sp_xpost = eff_post@spec.sp_xpost; sp_variant = []})
+     Some pty, ret, Ity.MaskVisible, 
+     {spec with sp_xpost = eff_post@spec.sp_xpost; sp_variant = []})
 
 let rec pattern info P.({ ppat_desc; _ } as pat) =
   match ppat_desc with
