@@ -765,6 +765,14 @@ let rec expression_desc info expr_loc expr_desc =
 and handler info try_exp cases spec =
 let spec = match spec with |Some s -> s |_ -> assert false in 
 let unit_param = Loc.dummy_position, None, false, PTtuple[] in
+let mk_post t = Loc.dummy_position, [T.mk_pattern (Pvar (T.mk_id "result")), t] in 
+let gen_kont_spec eff_name ret _pconds =
+  let mk_binder n pty = Loc.dummy_position, Some (T.mk_id n), false, Some pty in
+  let eff_type = Effect.get_effect_type eff_name in 
+  let binders = [mk_binder "arg" eff_type; mk_binder "result" ret] in 
+  let postcondition = 
+    Tquant(Why3.Dterm.DTforall, binders, [], T.mk_term Ttrue) in 
+  {Vspec.empty_spec with sp_post = [mk_post (T.mk_term postcondition)] }in 
 
 (* Translates a single branch of the effect handler
     The handler will be translated almost verbatim with the only notable differences being in 
@@ -788,7 +796,8 @@ let effect_branch (k, case) =
 
     (*function that creates the continuation*)
     let kont_type = Some (PTtyapp(Qident(T.mk_id "continuation"), [eff_type; ret])) in 
-    let kont_gen = Eany ([unit_param], Expr.RKnone, kont_type, T.mk_pattern Pwild, Ity.MaskVisible, Vspec.empty_spec) in 
+    let kont_spec = gen_kont_spec eff_name ret (List.map (T.term false) spec.sp_handle_post) in
+    let kont_gen = Eany ([unit_param], Expr.RKnone, kont_type, T.mk_pattern Pwild, Ity.MaskVisible, kont_spec) in 
     
     (*calling the function that creates the continuation*)
     let kont_gen_id = T.mk_id ("gen_" ^ k) in 
@@ -800,9 +809,8 @@ let effect_branch (k, case) =
     (q, Some pat, mk_expr exp) 
   |_ -> failwith "invalid case" in 
 let unit_binder = Loc.dummy_position, None, false, Some (PTtuple[]) in 
-let mk_post t = Loc.dummy_position, [T.mk_pattern (Pvar (T.mk_id "result")), T.term true t] in 
 let handler_spec = 
-  {Vspec.empty_spec with sp_post = List.map (fun x -> mk_post x) spec.sp_handle_post}  in 
+  {Vspec.empty_spec with sp_post = List.map (fun x -> mk_post (T.term true x)) spec.sp_handle_post}  in 
 let m = (Ematch (try_exp, [], List.map effect_branch cases)) in 
 let f = Efun([unit_binder], None, T.mk_pattern Pwild, Ity.MaskVisible, handler_spec, mk_expr m) in Eapply (mk_expr f, mk_expr (Etuple []))
 
