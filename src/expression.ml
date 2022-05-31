@@ -831,30 +831,41 @@ let gen_kont_spec eff_name ret pconds =
     @param case the branch we will translate*)
 let effect_branch (k, case) = 
   let exp = expression info case.Uast.spc_rhs in 
+  let pattern p = match pattern info p with | {pat_term=Some p;_} -> p |_ -> assert false in 
+  let q, pat = 
   match case.spc_lhs.ppat_desc with 
-  |Ppat_construct(l, None) -> 
-    let q = (longident ~id_loc:(T.location l.loc) l.txt) in
+  |Ppat_construct(id, None) -> 
+    let q = (longident ~id_loc:(T.location id.loc) id.txt) in
     let pat = T.mk_pattern (Ptree.Ptuple []) in
     let pat = T.mk_pattern (Ptree.Pas (pat, H.mk_id "req", true)) in
-    let eff_name = match q with |Qident id -> id.id_str |_ -> assert false in 
+    q, pat
+  |Ppat_construct(id, Some ([], {ppat_desc=Ppat_tuple l;_})) -> 
+    let q = (longident ~id_loc:(T.location id.loc) id.txt) in
+    let pat = T.mk_pattern (Ptree.Ptuple (List.map pattern l)) in 
+    q, pat
+  |Ppat_construct(id, Some ([], p)) -> 
+    let q = (longident ~id_loc:(T.location id.loc) id.txt) in
+    let pat = pattern p in 
+    q, pat
+  |_ -> failwith "invalid case" in
+  let eff_name = match q with |Qident id -> id.id_str |_ -> assert false in 
     
-    let eff_type = Effect.get_effect_type eff_name in 
-    let ret = T.pty spec.sp_returns in 
+  let eff_type = Effect.get_effect_type eff_name in 
+  let ret = T.pty spec.sp_returns in 
 
-    (*function that creates the continuation*)
-    let kont_type = Some (PTtyapp(Qident(T.mk_id "continuation"), [eff_type; ret])) in 
-    let kont_spec = gen_kont_spec eff_name ret (spec.sp_handle_post) in
-    let kont_gen = Eany ([unit_param], Expr.RKnone, kont_type, T.mk_pattern Pwild, Ity.MaskVisible, kont_spec) in 
-    
-    (*calling the function that creates the continuation*)
-    let kont_gen_id = T.mk_id ("gen_" ^ k) in 
-    let kont_gen_exp = Eident (Qident kont_gen_id) in 
-    let kont = Eapply(mk_expr kont_gen_exp, mk_expr (Etuple[])) in
-    let exp = Elet (T.mk_id k, false, Expr.RKnone, mk_expr kont, exp) in
-    
-    let exp = Elet (kont_gen_id, false, Expr.RKnone, mk_expr kont_gen,mk_expr exp) in 
-    (q, Some pat, Effect.state_exp "eff_state" (H.mk_expr exp)) 
-  |_ -> failwith "invalid case" in 
+  (*function that creates the continuation*)
+  let kont_type = Some (PTtyapp(Qident(T.mk_id "continuation"), [eff_type; ret])) in 
+  let kont_spec = gen_kont_spec eff_name ret (spec.sp_handle_post) in
+  let kont_gen = Eany ([unit_param], Expr.RKnone, kont_type, T.mk_pattern Pwild, Ity.MaskVisible, kont_spec) in 
+  
+  (*calling the function that creates the continuation*)
+  let kont_gen_id = T.mk_id ("gen_" ^ k) in 
+  let kont_gen_exp = Eident (Qident kont_gen_id) in 
+  let kont = Eapply(mk_expr kont_gen_exp, mk_expr (Etuple[])) in
+  let exp = Elet (T.mk_id k, false, Expr.RKnone, mk_expr kont, exp) in
+  
+  let exp = Elet (kont_gen_id, false, Expr.RKnone, mk_expr kont_gen,mk_expr exp) in 
+  (q, Some pat, Effect.state_exp "eff_state" (H.mk_expr exp)) in 
 let unit_binder = Loc.dummy_position, None, false, Some (PTtuple[]) in 
 let handler_spec = 
   {Vspec.empty_spec with sp_post = List.map (fun x -> mk_post (T.term true x)) spec.sp_handle_post}  in 
