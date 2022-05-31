@@ -44,7 +44,8 @@ let main exp =
    try_with (fun e -> eval e) exp
    {effc = fun (type a) (e : a eff)  ->
      match e with 
-     |Div_by_zero -> Some (fun (k : (a,_) continuation) -> continue k 1000) 
+     |Div_by_zero -> Some (fun (k : (a,_) continuation) -> 
+      curr_exp := Const 1000; continue k 1000) 
      |_ -> None} 
    (*@   try_ensures eval_ind (!curr_exp) = result 
          returns int *)

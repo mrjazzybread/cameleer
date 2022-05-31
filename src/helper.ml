@@ -9,6 +9,10 @@ let mk_id ?(id_ats = []) ?(id_loc = dummy_loc) id_str =
 
 let mk_expr ?(expr_loc = dummy_loc) expr_desc = { expr_desc; expr_loc }
 
+let mk_pattern ?(pat_loc = dummy_loc) pat_desc = { pat_desc; pat_loc }
+let mk_why_post t = 
+  dummy_loc, [mk_pattern (Pvar (mk_id "result")), t]
+
 let mk_tid s = 
   mk_term (Tident (Qident (mk_id s)))
 

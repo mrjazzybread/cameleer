@@ -88,7 +88,7 @@ let vspec spec =
 let mk_spec pre post w = 
   {
     sp_pre = [pre];
-    sp_post = [Loc.dummy_position, [T.mk_pattern (Pvar (T.mk_id "result")), post]];
+    sp_post = [Helper.mk_why_post post];
     sp_xpost = [];
     sp_reads = [];
     sp_writes = w;
