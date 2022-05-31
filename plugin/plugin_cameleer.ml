@@ -119,7 +119,8 @@ let apply state_term is_kont =
     else term_of_string "f" in 
   let arg_term = term_of_string "arg" in 
   let result_term = term_of_string "result" in 
-  let postcond = T.mk_fcall [post_term; kont_term; arg_term; state_term; state_term; result_term] in 
+  let old_state = H.mk_term (Tat(state_term, H.mk_id Dexpr.old_label)) in 
+  let postcond = T.mk_fcall [post_term; kont_term; arg_term; old_state; state_term; result_term] in 
   let valid = T.mk_fcall [term_of_string "valid"; term_of_string "f"] in 
   let invalid_kont = 
     if is_kont then T.mk_term (Tbinnop(postcond, DTand, T.mk_term (Tnot(valid))))
