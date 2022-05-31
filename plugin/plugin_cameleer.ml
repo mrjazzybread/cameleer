@@ -103,13 +103,7 @@ let post_pred =
     mk_param (List.nth params 1) in 
   mk_logic_dummy post_name [kont_arg; arg_arg; result_arg] None
 *)
-let mk_apply tl =
-  let rec mk tl =
-  match tl with 
-  |[] -> assert false 
-  |[t] -> t 
-  |t::tl -> T.mk_term (Tapply(mk tl, t)) in 
-    mk (List.rev tl)
+
 
 let term_of_string s =
   T.mk_term (Tident (Qident (T.mk_id s)))
@@ -120,18 +114,20 @@ let apply state_term is_kont =
   let arg_arg = mk_param ~name:(Some "arg") (List.hd params) in 
   let args = [cont_arg; arg_arg] in 
   let post_term =  term_of_string post_name in 
-  let cont_term = 
-    if is_kont then mk_apply [term_of_string "k"; term_of_string "f"]
+  let kont_term = 
+    if is_kont then T.mk_fcall [term_of_string "k"; term_of_string "f"]
     else term_of_string "f" in 
   let arg_term = term_of_string "arg" in 
   let result_term = term_of_string "result" in 
-  let postcond = mk_apply [post_term; cont_term; arg_term; state_term; state_term; result_term] in 
-  let valid = mk_apply [term_of_string "valid"; term_of_string "f"] in 
+  let postcond = T.mk_fcall [post_term; kont_term; arg_term; state_term; state_term; result_term] in 
+  let valid = T.mk_fcall [term_of_string "valid"; term_of_string "f"] in 
   let invalid_kont = 
     if is_kont then T.mk_term (Tbinnop(postcond, DTand, T.mk_term (Tnot(valid))))
     else postcond in
-  let writes = if is_kont then [valid] else [] in
-  let spec = Vspec.mk_spec (T.mk_term Ttrue) invalid_kont writes in 
+  let writes = Effect.writes_clause () in 
+  let writes = if is_kont then valid::writes else writes in
+  let pre = if is_kont then valid else (T.mk_term Ttrue) in 
+  let spec = Vspec.mk_spec pre invalid_kont writes in 
   let exp = Eany(args, Expr.RKnone, Some(List.nth params 1), T.mk_pattern Pwild, Ity.MaskVisible, spec) in 
   let name = if is_kont then continue_name else apply_name in 
   Dlet(T.mk_id name, false, Expr.RKnone, E.mk_expr exp)
@@ -145,7 +141,7 @@ let use_std_lib ref_decls types refs =
   let state_args = Seq.map (fun (x, _ ) -> 
     let id = T.mk_term (Tident (Qident (T.mk_id x))) in 
     let bang = T.mk_term (Tident (Qident (T.mk_id (Ident.op_prefix "!")))) in 
-    mk_apply [bang; id]
+    T.mk_fcall [bang; id]
     ) refs in
   let state_term = T.mk_term (Ttuple(List.of_seq state_args)) in 
   let state_type = PTtuple (List.of_seq ref_types) in 

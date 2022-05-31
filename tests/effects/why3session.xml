@@ -4,9 +4,10 @@
 <why3session shape_version="6">
 <prover id="0" name="Z3" version="4.8.14" timelimit="5" steplimit="0" memlimit="1000"/>
 <prover id="1" name="Alt-Ergo" version="2.2.0" timelimit="5" steplimit="0" memlimit="1000"/>
-<file format="ocaml">
+<prover id="2" name="Z3" version="4.8.14" alternative="noBV" timelimit="5" steplimit="0" memlimit="1000"/>
+<file format="ocaml" proved="true">
 <path name=".."/><path name="effects.ml"/>
-<theory name="Effects">
+<theory name="Effects" proved="true">
  <goal name="vc1&#39;vc" expl="VC for vc1" proved="true">
  <transf name="split_vc" proved="true" >
   <goal name="vc1&#39;vc.0" expl="postcondition" proved="true">
@@ -32,15 +33,70 @@
   </goal>
  </transf>
  </goal>
- <goal name="main&#39;vc" expl="VC for main">
+ <goal name="main&#39;vc" expl="VC for main" proved="true">
  <proof prover="0" obsolete="true"><result status="timeout" time="5.00"/></proof>
- <proof prover="1"><result status="unknown" time="0.30"/></proof>
- <transf name="split_vc" >
-  <goal name="main&#39;vc.0" expl="postcondition">
+ <proof prover="1" obsolete="true"><result status="unknown" time="0.30"/></proof>
+ <transf name="smoke_detector_deep" >
+  <goal name="main&#39;vc.0" expl="VC for main">
+  <proof prover="0" obsolete="true"><result status="timeout" time="5.00"/></proof>
+  <proof prover="1" obsolete="true"><result status="unknown" time="0.15"/></proof>
+  <proof prover="2" obsolete="true"><result status="timeout" time="5.00"/></proof>
   </goal>
-  <goal name="main&#39;vc.1" expl="precondition">
+ </transf>
+ <transf name="smoke_detector_top" >
+  <goal name="main&#39;vc.0" expl="VC for main">
+  <proof prover="0" obsolete="true"><result status="timeout" time="5.00"/></proof>
+  <proof prover="1" obsolete="true"><result status="unknown" time="0.12"/></proof>
   </goal>
-  <goal name="main&#39;vc.2" expl="postcondition">
+ </transf>
+ <transf name="split_vc" proved="true" >
+  <goal name="main&#39;vc.0" expl="postcondition" proved="true">
+  <proof prover="0"><result status="valid" time="0.02" steps="7181"/></proof>
+  <proof prover="1"><result status="valid" time="0.02" steps="4"/></proof>
+  <transf name="smoke_detector_deep" >
+   <goal name="main&#39;vc.0.0" expl="VC for main">
+   <proof prover="0"><result status="timeout" time="5.00"/></proof>
+   <proof prover="1"><result status="unknown" time="0.12"/></proof>
+   </goal>
+  </transf>
+  <transf name="smoke_detector_top" >
+   <goal name="main&#39;vc.0.0" expl="VC for main">
+   <proof prover="0"><result status="timeout" time="5.00"/></proof>
+   <proof prover="1"><result status="unknown" time="0.14"/></proof>
+   </goal>
+  </transf>
+  </goal>
+  <goal name="main&#39;vc.1" expl="precondition" proved="true">
+  <proof prover="0" obsolete="true"><result status="timeout" time="5.00"/></proof>
+  <proof prover="1"><result status="valid" time="0.01" steps="6"/></proof>
+  <transf name="smoke_detector_deep" >
+   <goal name="main&#39;vc.1.0" expl="VC for main">
+   <proof prover="0"><undone/></proof>
+   <proof prover="1"><result status="unknown" time="0.18"/></proof>
+   </goal>
+  </transf>
+  <transf name="smoke_detector_top" >
+   <goal name="main&#39;vc.1.0" expl="VC for main">
+   <proof prover="0"><undone/></proof>
+   <proof prover="1"><result status="unknown" time="0.20"/></proof>
+   </goal>
+  </transf>
+  </goal>
+  <goal name="main&#39;vc.2" expl="postcondition" proved="true">
+  <proof prover="0"><result status="valid" time="0.02" steps="97279"/></proof>
+  <proof prover="1"><result status="valid" time="0.03" steps="20"/></proof>
+  <transf name="smoke_detector_deep" >
+   <goal name="main&#39;vc.2.0" expl="VC for main">
+   <proof prover="0"><result status="timeout" time="5.00"/></proof>
+   <proof prover="1"><result status="timeout" time="5.00"/></proof>
+   </goal>
+  </transf>
+  <transf name="smoke_detector_top" >
+   <goal name="main&#39;vc.2.0" expl="VC for main">
+   <proof prover="0"><result status="timeout" time="5.00"/></proof>
+   <proof prover="1"><result status="timeout" time="5.00"/></proof>
+   </goal>
+  </transf>
   </goal>
  </transf>
  </goal>

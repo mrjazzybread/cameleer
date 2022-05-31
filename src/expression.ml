@@ -5,6 +5,7 @@ open Gospel
 open Longident
 open Why3ocaml_driver
 module T = Uterm
+module H = Helper
 module S = Vspec
 module P = Parsetree
 module Set = Stdlib.Set.Make(String)
@@ -766,12 +767,57 @@ and handler info try_exp cases spec =
 let spec = match spec with |Some s -> s |_ -> assert false in 
 let unit_param = Loc.dummy_position, None, false, PTtuple[] in
 let mk_post t = Loc.dummy_position, [T.mk_pattern (Pvar (T.mk_id "result")), t] in 
-let gen_kont_spec eff_name ret _pconds =
+
+let gen_kont_spec eff_name ret pconds =
   let mk_binder n pty = Loc.dummy_position, Some (T.mk_id n), false, Some pty in
-  let eff_type = Effect.get_effect_type eff_name in 
-  let binders = [mk_binder "arg" eff_type; mk_binder "result" ret] in 
-  let postcondition = 
-    Tquant(Why3.Dterm.DTforall, binders, [], T.mk_term Ttrue) in 
+  let eff_type = Effect.get_effect_type eff_name in
+  let state_type = Effect.get_state_type () in  
+
+  let binders = 
+    [mk_binder "reply" eff_type; 
+    mk_binder "old_state" state_type; 
+    mk_binder "state" state_type ; 
+    mk_binder "result" ret] in
+  
+  let pre_call = T.mk_fcall 
+    [H.pre; H.mk_tid "f"; 
+    H.mk_tid "reply"; 
+    H.mk_tid "old_state"] in
+  let prot_post = T.mk_fcall 
+    [H.mk_tid ("post_" ^ eff_name);
+    H.mk_tid "req";
+    H.mk_tid "eff_state";
+    H.mk_tid "old_state";
+    H.mk_tid "reply"] in 
+  let iff = Why3.Dterm.DTiff in 
+  let pre_cond = 
+    H.mk_term (Tbinnop(pre_call, iff, prot_post)) in
+  
+  let post_call = T.mk_fcall
+    [H.post; H.mk_tid "f";
+    H.mk_tid "reply";
+    H.mk_tid "old_state";
+    H.mk_tid "state";
+    H.mk_tid "result"
+    ] in 
+  let terms = List.map (T.term ~in_pred:true true) pconds in 
+  let dtand = Why3.Dterm.DTand in 
+  let kont_post = if terms = [] then H.mk_term Ttrue else
+    List.fold_left 
+      (fun acc t -> H.mk_term (Tbinnop (t, dtand, acc)) ) 
+      (List.hd terms) (List.tl terms) in 
+  let kont_post = Effect.wrap false kont_post in 
+  let kont_post = Effect.wrap ~s_name:(Some "init_state") true kont_post in 
+  let post_cond = 
+    H.mk_term (Tbinnop(post_call, iff, kont_post)) in 
+
+  let cond = H.mk_term (Tbinnop(pre_cond, Why3.Dterm.DTand, post_cond)) in 
+  let quant = 
+    Tquant(Why3.Dterm.DTforall, binders, [], cond) in 
+  let f_term = T.mk_fcall [H.mk_tid "k"; H.mk_tid "result"] in
+  let valid = T.mk_fcall [H.mk_tid "valid"; H.mk_tid "result"] in 
+  let term = H.mk_term (Tbinnop(valid, Why3.Dterm.DTand, H.mk_term quant)) in
+  let postcondition = (Tlet (H.mk_id "f", f_term, term)) in
   {Vspec.empty_spec with sp_post = [mk_post (T.mk_term postcondition)] }in 
 
 (* Translates a single branch of the effect handler
@@ -789,6 +835,7 @@ let effect_branch (k, case) =
   |Ppat_construct(l, None) -> 
     let q = (longident ~id_loc:(T.location l.loc) l.txt) in
     let pat = T.mk_pattern (Ptree.Ptuple []) in
+    let pat = T.mk_pattern (Ptree.Pas (pat, H.mk_id "req", true)) in
     let eff_name = match q with |Qident id -> id.id_str |_ -> assert false in 
     
     let eff_type = Effect.get_effect_type eff_name in 
@@ -796,7 +843,7 @@ let effect_branch (k, case) =
 
     (*function that creates the continuation*)
     let kont_type = Some (PTtyapp(Qident(T.mk_id "continuation"), [eff_type; ret])) in 
-    let kont_spec = gen_kont_spec eff_name ret (List.map (T.term false) spec.sp_handle_post) in
+    let kont_spec = gen_kont_spec eff_name ret (spec.sp_handle_post) in
     let kont_gen = Eany ([unit_param], Expr.RKnone, kont_type, T.mk_pattern Pwild, Ity.MaskVisible, kont_spec) in 
     
     (*calling the function that creates the continuation*)
@@ -806,13 +853,14 @@ let effect_branch (k, case) =
     let exp = Elet (T.mk_id k, false, Expr.RKnone, mk_expr kont, exp) in
     
     let exp = Elet (kont_gen_id, false, Expr.RKnone, mk_expr kont_gen,mk_expr exp) in 
-    (q, Some pat, mk_expr exp) 
+    (q, Some pat, Effect.state_exp "eff_state" (H.mk_expr exp)) 
   |_ -> failwith "invalid case" in 
 let unit_binder = Loc.dummy_position, None, false, Some (PTtuple[]) in 
 let handler_spec = 
   {Vspec.empty_spec with sp_post = List.map (fun x -> mk_post (T.term true x)) spec.sp_handle_post}  in 
 let m = (Ematch (try_exp, [], List.map effect_branch cases)) in 
-let f = Efun([unit_binder], None, T.mk_pattern Pwild, Ity.MaskVisible, handler_spec, mk_expr m) in Eapply (mk_expr f, mk_expr (Etuple []))
+let exp = Effect.state_exp "init_state" (H.mk_expr m) in 
+let f = Efun([unit_binder], None, T.mk_pattern Pwild, Ity.MaskVisible, handler_spec, exp) in Eapply (mk_expr f, mk_expr (Etuple []))
 
 and expression info Uast.({ spexp_desc; spexp_attributes; _ } as e) =
   let expr_loc = T.location e.spexp_loc in

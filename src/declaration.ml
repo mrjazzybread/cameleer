@@ -445,7 +445,7 @@ let setup_protocol prot =
   let param_name = Qident (T.mk_id ("param_" ^ p_name)) in
   (*effect return type*)
   let t = get_effect_type p_name in
-  (*gets the types of the state variables that this protocol uses by means of the writes clause*)
+  (*gets the types of the state variables *)
   let state_type = get_state_type () in
   (*creates the predicate arguments for the state variables*) 
   let state_param = mk_param (T.mk_id "state") state_type in 
