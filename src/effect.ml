@@ -28,9 +28,17 @@ let map_ref_type r t =
     | _ -> t in 
   tl_ref_types := Map.add r t (!tl_ref_types)
 
-let map_fun_type f t =
+let map_arg_type f t =
   let t = T.defun_type t in 
   arg_fun_types := Map.add f t (!arg_fun_types)
+
+let flush_fun_types () =
+  arg_fun_types := Map.empty
+
+let is_defun v =
+  match Map.find_opt v !arg_fun_types with 
+  |Some (PTtyapp (Qident ({id_str="lambda";_}), _)) -> true 
+  |_ -> false 
 
 let get_ref_type r = 
   Map.find r (!tl_ref_types)

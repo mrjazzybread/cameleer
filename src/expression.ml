@@ -367,7 +367,10 @@ let binder_of_pattern =
     | Ppat_or _ -> assert false (* TODO *)
     | Ppat_constraint ({ ppat_desc = Ppat_var s; ppat_loc; _ }, cty) ->
         let id = T.(mk_id s.txt ~id_loc:(location s.loc)) in
-        let pty = Some (T.defun_type (core_type cty)) in
+        let pty = T.defun_type (core_type cty) in 
+        Effect.map_arg_type s.txt pty;
+        (assert (Effect.is_defun s.txt));
+        let pty = Some pty in
         (binder id ppat_loc ppat_attributes pty, mk_binder_info_none)
     | Ppat_constraint _ -> assert false (* TODO *)
     | Ppat_type _ -> assert false (* TODO *)
@@ -668,7 +671,18 @@ let rec expression_desc info expr_loc expr_desc =
   | Uast.Sexp_apply ({ spexp_desc = Sexp_ident s; _ }, arg_expr_list) ->
       let id_loc = T.location s.loc in
       let txt = if s.txt = Lident "continue" then Lident "contin" else s.txt in
-      mk_eidapp (longident ~id_loc txt) (List.map arg_expr arg_expr_list)
+      let defun = 
+        match s.txt with |Lident x when Effect.is_defun x -> Some x | _ -> None in 
+      let args = (List.map arg_expr arg_expr_list) in 
+      begin
+      match defun with  
+      |Some x -> 
+          let apply = Qident (T.mk_id "apply") in
+          List.fold_left 
+            (fun acc e -> (Eidapp (apply, [mk_expr acc; e])))
+            (Eident (Qident (T.mk_id x))) args
+      |None -> mk_eidapp (longident ~id_loc txt) args
+      end
   | Uast.Sexp_apply (expr, arg_expr_list) ->
       let mk_app acc (_, e) = mk_expr (Eapply (acc, expression info e)) in
       let e_acc = expression info expr in
@@ -1084,7 +1098,6 @@ and s_value_binding info svb =
         let args, expr = subst_args_expr args expr spec_uast in
         let ret = T.mk_pattern Pwild in
         let p = match svb.spvb_vspec with |None -> [] | Some x -> x.sp_performs in
-        Printf.printf "%d\n" (List.length p);
         let p = List.map T.qualid p in 
         let spec = spec svb.Uast.spvb_vspec in
         let efun = Efun (args, pty, ret, Ity.MaskVisible, spec, expr) in 
@@ -1109,4 +1122,5 @@ and s_value_binding info svb =
   let id = id_of_pat svb.spvb_pat in
   let exp, dummy =  mk_svb_expr pexp in 
   let l = match dummy with |Some e -> [id, e] |None -> [] in 
+  Effect.flush_fun_types ();
   (id,exp)::l
