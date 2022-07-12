@@ -369,7 +369,6 @@ let binder_of_pattern =
         let id = T.(mk_id s.txt ~id_loc:(location s.loc)) in
         let pty = T.defun_type (core_type cty) in 
         Effect.map_arg_type s.txt pty;
-        (assert (Effect.is_defun s.txt));
         let pty = Some pty in
         (binder id ppat_loc ppat_attributes pty, mk_binder_info_none)
     | Ppat_constraint _ -> assert false (* TODO *)
@@ -572,6 +571,26 @@ let rec term info Uast.{ spexp_desc = p_desc; spexp_loc; _ } =
   in
   mk_term (pexp_desc p_desc)
 
+and defun expr _spec = 
+  let rec args f = 
+    match f with 
+    |Uast.Sexp_fun(_, _, 
+    {ppat_desc=Ppat_constraint({ppat_desc=Ppat_var v;_}, t);_}, e, _) -> 
+      let args, v_types, r = args e.Uast.spexp_desc in  
+        v::args, (core_type t)::v_types, r 
+    |Uast.Sexp_constraint(_, core) -> [], [], core_type core
+    |_ -> assert false in 
+  let _a, t, r = args expr in
+  let t = List.rev t in  
+  let kont_type = List.fold_left 
+      (fun acc t -> PTtyapp(Qident(T.mk_id "lambda"), [t; acc]))
+      (PTtyapp(Qident (T.mk_id "lambda"), [List.hd t; r])) (List.tl t) in 
+      Eapply (
+        mk_expr (
+          Eany([Loc.dummy_position, None, false, PTtuple[]], Expr.RKnone, 
+              Some kont_type ,T.mk_pattern Pwild, Ity.MaskVisible, empty_spec)
+        ), mk_expr (Etuple []))
+
 and construct_arith info s term_list =
   if Hashtbl.find info.Odecl.info_arith_construct s > 1 then
     List.map (term info) term_list
@@ -642,11 +661,9 @@ let rec expression_desc info expr_loc expr_desc =
       let expr_in = expression info expr in 
       mk_erec (List.map (mk_fun_def false rs_kind) id_fun_expr_list) expr_in
   | Uast.Sexp_function _ -> assert false (* TODO *)
-  | Uast.Sexp_fun (Nolabel, None, pat, expr_fun, spec) ->
+  | Uast.Sexp_fun (Nolabel, None, _, _, spec) ->
       let spec = match spec with Some s -> S.fun_spec s | _ -> empty_spec in
-      let binder, binder_info = binder_of_pattern info pat in
-      let expr_fun = special_binder (expression info expr_fun) binder_info in
-      mk_efun_visible [ binder ] None spec expr_fun
+      defun expr_desc spec
   | Uast.Sexp_apply (s, [_,e]) when is_perform s -> 
     begin 
       match e.Uast.spexp_desc with 

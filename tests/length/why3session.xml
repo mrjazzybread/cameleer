@@ -2,10 +2,32 @@
 <!DOCTYPE why3session PUBLIC "-//Why3//proof session v5//EN"
 "http://why3.lri.fr/why3session.dtd">
 <why3session shape_version="6">
+<prover id="0" name="Alt-Ergo" version="2.2.0" timelimit="5" steplimit="0" memlimit="1000"/>
 <file format="ocaml">
 <path name=".."/><path name="length.ml"/>
 <theory name="Length">
- <goal name="vc1&#39;vc" expl="VC for vc1">
+ <goal name="length_cps&#39;vc" expl="VC for length_cps">
+ <proof prover="0" obsolete="true"><result status="unknown" time="0.15"/></proof>
+ <transf name="split_vc" >
+  <goal name="length_cps&#39;vc.0" expl="precondition" proved="true">
+  <proof prover="0"><result status="valid" time="0.01" steps="17"/></proof>
+  </goal>
+  <goal name="length_cps&#39;vc.1" expl="postcondition" proved="true">
+  <proof prover="0"><result status="valid" time="0.01" steps="10"/></proof>
+  </goal>
+  <goal name="length_cps&#39;vc.2" expl="precondition">
+  <proof prover="0"><result status="unknown" time="0.16"/></proof>
+  </goal>
+  <goal name="length_cps&#39;vc.3" expl="termination">
+  <proof prover="0"><result status="unknown" time="0.15"/></proof>
+  </goal>
+  <goal name="length_cps&#39;vc.4" expl="postcondition">
+  <proof prover="0"><result status="unknown" time="0.14"/></proof>
+  </goal>
+ </transf>
+ </goal>
+ <goal name="length_direct&#39;vc" expl="VC for length_direct">
+ <proof prover="0" obsolete="true"><result status="unknown" time="0.12"/></proof>
  </goal>
 </theory>
 </file>

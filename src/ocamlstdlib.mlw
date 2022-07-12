@@ -6,6 +6,7 @@ module Stdlib
   use export int.Abs
   use export mach.int.Int
   use export list.List
+  use export list.Length
   use export list.Append
   use export ocaml.Exceptions
   use export option.Option
