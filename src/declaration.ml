@@ -618,6 +618,8 @@ let s_structure, s_signature =
                 else let f, d = split t in (id1, e1)::f,d in split id_fun_expr_list in 
         let ghost = is_ghost_let svb_list in
         let rec_fun = List.map (E.mk_fun_def ghost rs_kind) funs in
+        if dummy = [] then 
+          [O.mk_odecl Loc.dummy_position (Drec rec_fun)] else
         let vcs = E.mk_expr (Erec(rec_fun, E.mk_expr (Etuple []))) in 
         (O.mk_odecl Loc.dummy_position (Dlet(T.mk_id (vc()), true, Expr.RKnone, vcs)))::
         (List.map (fun (id, e) -> O.mk_odecl loc (Dlet (id, ghost, rs_kind, e))) dummy)

@@ -1,3 +1,2 @@
-type exp = Const of int | Div of exp * exp
+let g f = f 0
 
-let x =0

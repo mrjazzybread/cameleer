@@ -166,3 +166,12 @@ let is_deref q =
         Tquant (quant q, List.map binder bl, [], term ~in_pred in_post t)
   in
   mk_term (term_desc t_desc)
+
+
+(*Turns an arrow type into a defunctionalized equivelent*)
+let rec defun_type t =
+  Printf.printf "wow\n";
+  match t with 
+  |PTarrow (t1, t2) -> PTtyapp (Qident (mk_id "lambda"), [defun_type t1; defun_type t2])
+  |PTtuple l -> PTtuple (List.map defun_type l)
+  |_ -> t

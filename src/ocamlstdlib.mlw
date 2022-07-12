@@ -33,6 +33,9 @@ module Stdlib_fun
   predicate pre (lambda 'a 'b) 'a state
   predicate post (lambda 'a 'b) 'a state state 'b  
 
+  predicate no_pre (f : lambda 'a 'b) =
+    forall arg state. pre f arg state 
+
   val ignore (_: 'a) : unit
 
   let function fst (x: ('a, 'b)) : 'a =

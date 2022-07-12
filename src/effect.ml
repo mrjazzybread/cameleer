@@ -15,6 +15,8 @@ let effect_types : (pty Map.t) ref = ref Map.empty
 
 let tl_ref_types : (pty Map.t) ref = ref Map.empty
 
+let arg_fun_types : (pty Map.t) ref = ref Map.empty
+
 let map_effect e t =
   effect_types := Map.add e t (!effect_types)
 
@@ -26,7 +28,9 @@ let map_ref_type r t =
     | _ -> t in 
   tl_ref_types := Map.add r t (!tl_ref_types)
 
-
+let map_fun_type f t =
+  let t = T.defun_type t in 
+  arg_fun_types := Map.add f t (!arg_fun_types)
 
 let get_ref_type r = 
   Map.find r (!tl_ref_types)
@@ -49,7 +53,7 @@ let pattern_of_string s =
   T.mk_pattern (Pvar s)
 
 (** Creates a term that is a tuple consisting of the values of all mutable references
-    @param is_old If we want the old values, this should be true *)
+    @param is_old true if we want the old values *)
 let mk_state_term is_old =
   let seq = Map.to_seq !tl_ref_types in
   let tl = List.of_seq (Seq.map (fun (s, _) -> 

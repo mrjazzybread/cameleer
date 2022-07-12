@@ -324,7 +324,8 @@ let binder_of_pattern =
   let counter = ref 0 in
   fun info P.{ ppat_desc; ppat_loc; ppat_attributes; _ } ->
     let binder id pat_loc ghost_pat pty =
-      mk_binder (T.location pat_loc) (Some id) (is_ghost ghost_pat) pty
+      mk_binder (T.location pat_loc) (Some id) 
+        (is_ghost ghost_pat) pty
     in
     match ppat_desc with
     | Ppat_any ->
@@ -366,7 +367,7 @@ let binder_of_pattern =
     | Ppat_or _ -> assert false (* TODO *)
     | Ppat_constraint ({ ppat_desc = Ppat_var s; ppat_loc; _ }, cty) ->
         let id = T.(mk_id s.txt ~id_loc:(location s.loc)) in
-        let pty = Some (core_type cty) in
+        let pty = Some (T.defun_type (core_type cty)) in
         (binder id ppat_loc ppat_attributes pty, mk_binder_info_none)
     | Ppat_constraint _ -> assert false (* TODO *)
     | Ppat_type _ -> assert false (* TODO *)
@@ -783,6 +784,7 @@ let gen_kont_spec eff_name ret pconds =
     [H.pre; H.mk_tid "f"; 
     H.mk_tid "reply"; 
     H.mk_tid "old_state"] in
+
   let prot_post = T.mk_fcall 
     [H.mk_tid ("post_" ^ eff_name);
     H.mk_tid "req";
@@ -1042,7 +1044,7 @@ and s_value_binding info svb =
         let ematch = mk_ematch param reg_branch exn_branch in
         let expr_loc = T.location expr.spexp_loc in
         (List.rev (arg :: acc), mk_expr ematch ~expr_loc, None)
-    | Sexp_constraint(e, ty) -> (List.rev acc, expression info e, Some (core_type ty))
+    | Sexp_constraint(e, ty) -> (List.rev acc, expression info e, Some (T.defun_type (core_type ty)))
     | _ -> (List.rev acc, expression info expr, None)
   in
   (* TODO *)
@@ -1078,11 +1080,11 @@ and s_value_binding info svb =
         let args, expr, pty = loop [] expr in
         let expr_loc = expr.expr_loc in
         let old_id = T.mk_id "'Old" in
-        reset();
         let expr = mk_expr ~expr_loc (Elabel (old_id, expr)) in
         let args, expr = subst_args_expr args expr spec_uast in
         let ret = T.mk_pattern Pwild in
         let p = match svb.spvb_vspec with |None -> [] | Some x -> x.sp_performs in
+        Printf.printf "%d\n" (List.length p);
         let p = List.map T.qualid p in 
         let spec = spec svb.Uast.spvb_vspec in
         let efun = Efun (args, pty, ret, Ity.MaskVisible, spec, expr) in 
