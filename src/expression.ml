@@ -571,25 +571,61 @@ let rec term info Uast.{ spexp_desc = p_desc; spexp_loc; _ } =
   in
   mk_term (pexp_desc p_desc)
 
-and defun expr _spec = 
+and defun expr spec = 
   let rec args f = 
     match f with 
     |Uast.Sexp_fun(_, _, 
     {ppat_desc=Ppat_constraint({ppat_desc=Ppat_var v;_}, t);_}, e, _) -> 
       let args, v_types, r = args e.Uast.spexp_desc in  
-        v::args, (core_type t)::v_types, r 
+        v.txt::args, (core_type t)::v_types, r 
     |Uast.Sexp_constraint(_, core) -> [], [], core_type core
     |_ -> assert false in 
-  let _a, t, r = args expr in
-  let t = List.rev t in  
+  let a, t, r = args expr in
+  let a, t = List.rev a, List.rev t in
+  let final_arg = List.hd a in 
+  let post_app = Effect.mk_post_term final_arg in 
+  let pre_app = Effect.mk_pre_term final_arg in 
+  let post_term = H.fold_terms (List.map H.term_of_post spec.sp_post) in 
+  let pre_term = H.fold_terms spec.sp_pre in 
+  let post = H.mk_equiv post_app post_term in 
+  let pre = H.mk_equiv pre_app pre_term in
+  let forall = H.mk_term (
+    Tquant(
+      Why3.Dterm.DTforall,
+      List.map (fun x -> Loc.dummy_position, Some (H.mk_id x), false, None) [final_arg;"old_state"; "state"; "result"], 
+      [], H.mk_and pre post)) in 
+  let rec multiple_args term l =
+    let mk_binder n = Loc.dummy_position, Some (H.mk_id n), false, None in 
+    match l with 
+    |[] -> term 
+    |arg::t ->
+    let term = 
+      H.mk_equiv
+        (Effect.mk_post_term arg) 
+        term
+        in
+    let binders = [mk_binder arg; mk_binder "result"] in
+    let term =
+      H.mk_term (Tquant (
+        Why3.Dterm.DTforall, binders, [], term
+      )) in 
+    let term = H.mk_term (
+      Tlet(H.mk_id "f", H.mk_tid "result", term)) in 
+      multiple_args term t in
+  
+  let term = H.mk_term (Tlet (T.mk_id "f", H.mk_tid "result", forall)) in 
+  let full_term = multiple_args term (List.tl a) in
+  let post = Loc.dummy_position, [T.mk_pattern (Pvar (T.mk_id "result")), full_term] in   
   let kont_type = List.fold_left 
       (fun acc t -> PTtyapp(Qident(T.mk_id "lambda"), [t; acc]))
       (PTtyapp(Qident (T.mk_id "lambda"), [List.hd t; r])) (List.tl t) in 
-      Eapply (
+      let value = 
         mk_expr (
           Eany([Loc.dummy_position, None, false, PTtuple[]], Expr.RKnone, 
-              Some kont_type ,T.mk_pattern Pwild, Ity.MaskVisible, empty_spec)
-        ), mk_expr (Etuple []))
+              Some kont_type ,T.mk_pattern Pwild, Ity.MaskVisible, {empty_spec with sp_post = [post]})
+        ) in 
+      Elet(T.mk_id "h", false, Expr.RKnone, value, 
+        mk_expr (Eapply (mk_expr (Eident (Qident (T.mk_id "h"))), mk_expr (Etuple []))))
 
 and construct_arith info s term_list =
   if Hashtbl.find info.Odecl.info_arith_construct s > 1 then
@@ -801,15 +837,14 @@ let unit_param = Loc.dummy_position, None, false, PTtuple[] in
 let mk_post t = Loc.dummy_position, [T.mk_pattern (Pvar (T.mk_id "result")), t] in 
 
 let gen_kont_spec eff_name ret pconds =
-  let mk_binder n pty = Loc.dummy_position, Some (T.mk_id n), false, Some pty in
   let eff_type = Effect.get_effect_type eff_name in
   let state_type = Effect.get_state_type () in  
 
   let binders = 
-    [mk_binder "reply" eff_type; 
-    mk_binder "old_state" state_type; 
-    mk_binder "state" state_type ; 
-    mk_binder "result" ret] in
+    [Helper.mk_binder "reply" eff_type; 
+    Helper.mk_binder "old_state" state_type; 
+    Helper.mk_binder "state" state_type ; 
+    Helper.mk_binder "result" ret] in
   
   let pre_call = T.mk_fcall 
     [H.pre; H.mk_tid "f"; 
@@ -834,11 +869,7 @@ let gen_kont_spec eff_name ret pconds =
     H.mk_tid "result"
     ] in 
   let terms = List.map (T.term ~in_pred:true true) pconds in 
-  let dtand = Why3.Dterm.DTand in 
-  let kont_post = if terms = [] then H.mk_term Ttrue else
-    List.fold_left 
-      (fun acc t -> H.mk_term (Tbinnop (t, dtand, acc)) ) 
-      (List.hd terms) (List.tl terms) in 
+  let kont_post = H.fold_terms terms in 
   let kont_post = Effect.wrap false kont_post in 
   let kont_post = Effect.wrap ~s_name:(Some "init_state") true kont_post in 
   let post_cond = 

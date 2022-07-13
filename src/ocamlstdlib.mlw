@@ -35,7 +35,7 @@ module Stdlib_fun
   predicate post (lambda 'a 'b) 'a state state 'b  
 
   predicate no_pre (f : lambda 'a 'b) =
-    forall arg state. pre f arg state 
+    forall arg state. pre f arg state
 
   val ignore (_: 'a) : unit
 

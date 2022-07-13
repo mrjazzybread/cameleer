@@ -99,3 +99,20 @@ let state_exp n e =
   H.mk_expr (
     Elet(H.mk_id n, true, Expr.RKnone, s, e)
   )
+
+  let mk_post_term arg_name =
+    T.mk_term 
+      (Tidapp (Qident (T.mk_id "post"), 
+      [H.mk_tid "f"; 
+      H.mk_tid arg_name; 
+      H.mk_tid "old_state"; 
+      H.mk_tid "state"; 
+      H.mk_tid "result"])) 
+
+let mk_pre_term arg_name =
+  T.mk_term (
+    (Tidapp (Qident (T.mk_id "pre"), 
+      [H.mk_tid "f"; 
+      H.mk_tid arg_name; 
+      H.mk_tid "old_state"])
+  ))
