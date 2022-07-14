@@ -670,21 +670,29 @@ let rec expression_desc info expr_loc expr_desc =
       let id_loc = T.location s.loc in
       let txt = if s.txt = Lident "continue" then Lident "contin" else s.txt in
       let defun = 
+        (*if this function identifier doesn't represent a defunctionalized lambda,
+            this variable will be None*)
         match s.txt with |Lident x when Effect.is_defun x -> Some x | _ -> None in 
       let args = (List.map arg_expr arg_expr_list) in 
       begin
       match defun with  
       |Some x -> 
           let apply = Qident (T.mk_id "apply") in
-          List.fold_left 
+          List.fold_left
             (fun acc e -> (Eidapp (apply, [mk_expr acc; e])))
             (Eident (Qident (T.mk_id x))) args
       |None -> mk_eidapp (longident ~id_loc txt) args
       end
   | Uast.Sexp_apply (expr, arg_expr_list) ->
-      let mk_app acc (_, e) = mk_expr (Eapply (acc, expression info e)) in
+      (*let mk_app acc (_, e) = mk_expr (Eapply (acc, expression info e)) in
       let e_acc = expression info expr in
-      (List.fold_left mk_app e_acc arg_expr_list).expr_desc
+      (List.fold_left mk_app e_acc arg_expr_list).expr_desc *)
+      let rec mk_apply e el =
+        match el with 
+        |[] -> e 
+        |(_, arg)::t -> 
+          mk_expr (Eidapp (Qident (T.mk_id "apply"), [mk_apply e t; expression info arg])) in 
+        (mk_apply (expression info expr) arg_expr_list).expr_desc
       (* :O *)
   | Uast.Sexp_match (expr, case_list) ->
       let reg_branch, exn_branch = case info case_list in
@@ -805,10 +813,12 @@ and defun info expr spec =
     let mk_binder n = Loc.dummy_position, Some (H.mk_id n), false, None in 
     match l with 
     |[] -> term 
-    |arg::t ->
-    let term = H.mk_equiv
+    |arg::t ->    
+    let post = H.mk_equiv
         (Effect.mk_post_term arg) 
         term in
+    let pre = Effect.mk_pre_term arg in 
+    let term = H.mk_and pre post in
     let binders = 
       [mk_binder arg; mk_binder "old_state"; mk_binder "state"; mk_binder "result"] in
     let term =

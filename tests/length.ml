@@ -1,4 +1,3 @@
-
 let rec length_cps l (k : int -> 'a) : 'a =
   match l with
   | [] -> k 0
@@ -6,7 +5,7 @@ let rec length_cps l (k : int -> 'a) : 'a =
     length_cps t 
     (fun [@gospel {|ensures post k (r + 1) () () result|}] (r : int) : 'a -> k (r + 1))
 (*@ variant l
-    requires forall arg state. pre k arg state
+    requires no_pre k
     ensures post k (length l) () () result*)
 
 
