@@ -571,61 +571,6 @@ let rec term info Uast.{ spexp_desc = p_desc; spexp_loc; _ } =
   in
   mk_term (pexp_desc p_desc)
 
-and defun expr spec = 
-  let rec args f = 
-    match f with 
-    |Uast.Sexp_fun(_, _, 
-    {ppat_desc=Ppat_constraint({ppat_desc=Ppat_var v;_}, t);_}, e, _) -> 
-      let args, v_types, r = args e.Uast.spexp_desc in  
-        v.txt::args, (core_type t)::v_types, r 
-    |Uast.Sexp_constraint(_, core) -> [], [], core_type core
-    |_ -> assert false in 
-  let a, t, r = args expr in
-  let a, t = List.rev a, List.rev t in
-  let final_arg = List.hd a in 
-  let post_app = Effect.mk_post_term final_arg in 
-  let pre_app = Effect.mk_pre_term final_arg in 
-  let post_term = H.fold_terms (List.map H.term_of_post spec.sp_post) in 
-  let pre_term = H.fold_terms spec.sp_pre in 
-  let post = H.mk_equiv post_app post_term in 
-  let pre = H.mk_equiv pre_app pre_term in
-  let forall = H.mk_term (
-    Tquant(
-      Why3.Dterm.DTforall,
-      List.map (fun x -> Loc.dummy_position, Some (H.mk_id x), false, None) [final_arg;"old_state"; "state"; "result"], 
-      [], H.mk_and pre post)) in 
-  let rec multiple_args term l =
-    let mk_binder n = Loc.dummy_position, Some (H.mk_id n), false, None in 
-    match l with 
-    |[] -> term 
-    |arg::t ->
-    let term = 
-      H.mk_equiv
-        (Effect.mk_post_term arg) 
-        term
-        in
-    let binders = [mk_binder arg; mk_binder "result"] in
-    let term =
-      H.mk_term (Tquant (
-        Why3.Dterm.DTforall, binders, [], term
-      )) in 
-    let term = H.mk_term (
-      Tlet(H.mk_id "f", H.mk_tid "result", term)) in 
-      multiple_args term t in
-  
-  let term = H.mk_term (Tlet (T.mk_id "f", H.mk_tid "result", forall)) in 
-  let full_term = multiple_args term (List.tl a) in
-  let post = Loc.dummy_position, [T.mk_pattern (Pvar (T.mk_id "result")), full_term] in   
-  let kont_type = List.fold_left 
-      (fun acc t -> PTtyapp(Qident(T.mk_id "lambda"), [t; acc]))
-      (PTtyapp(Qident (T.mk_id "lambda"), [List.hd t; r])) (List.tl t) in 
-      let value = 
-        mk_expr (
-          Eany([Loc.dummy_position, None, false, PTtuple[]], Expr.RKnone, 
-              Some kont_type ,T.mk_pattern Pwild, Ity.MaskVisible, {empty_spec with sp_post = [post]})
-        ) in 
-      Elet(T.mk_id "h", false, Expr.RKnone, value, 
-        mk_expr (Eapply (mk_expr (Eident (Qident (T.mk_id "h"))), mk_expr (Etuple []))))
 
 and construct_arith info s term_list =
   if Hashtbl.find info.Odecl.info_arith_construct s > 1 then
@@ -699,7 +644,7 @@ let rec expression_desc info expr_loc expr_desc =
   | Uast.Sexp_function _ -> assert false (* TODO *)
   | Uast.Sexp_fun (Nolabel, None, _, _, spec) ->
       let spec = match spec with Some s -> S.fun_spec s | _ -> empty_spec in
-      defun expr_desc spec
+      defun info expr_desc spec
   | Uast.Sexp_apply (s, [_,e]) when is_perform s -> 
     begin 
       match e.Uast.spexp_desc with 
@@ -822,6 +767,78 @@ let rec expression_desc info expr_loc expr_desc =
   | Sexp_unreachable -> assert false (* TODO *)
   | Sexp_letop _ -> assert false
 (* TODO *)
+
+and defun info expr spec = 
+  (*Function to retrieve the function's arguments and their types. Also gets 
+     the function's return type and the body. All types must be explictly annotated*)
+  let rec args f = 
+    match f with 
+    |Uast.Sexp_fun(_, _, 
+    {ppat_desc=Ppat_constraint({ppat_desc=Ppat_var v;_}, t);_}, e, _) -> 
+      let args, v_types, r, e = args e.Uast.spexp_desc in  
+        v.txt::args, (core_type t)::v_types, r, e 
+    |Uast.Sexp_constraint(e, core) -> [], [], core_type core, expression info e
+    |_ -> assert false in 
+  
+    
+  let args, arg_types, ret_type, f_e = args expr in
+  let a, t = List.rev args, List.rev arg_types in
+  let final_arg = List.hd a in 
+  let post_app = Effect.mk_post_term final_arg in (*post f arg old_state state result*)
+  let pre_app = Effect.mk_pre_term final_arg in (*pre f arg state *)
+  let post_term = Effect.wrap true (Effect.wrap false (H.fold_terms (List.map H.term_of_post spec.sp_post))) in (*Q1 && Q2 && ...*)
+  let pre_term = Effect.wrap false (H.fold_terms spec.sp_pre) in (*P1 && P2 && ...*)
+  let post = H.mk_equiv post_app post_term in (*post f ... <-> Q1...*)
+  let pre = H.mk_equiv pre_app pre_term in (*pre f ...* <-> P1 ... *)
+  let forall = H.mk_term (
+    Tquant(
+      Why3.Dterm.DTforall,
+      List.map (fun x -> Loc.dummy_position, Some (H.mk_id x), false, None) [final_arg;"old_state"; "state"; "result"], 
+      [], H.mk_and pre post)) in 
+  
+  (*Given a function with multiple arguments, creates a term
+     {!let f = result in forall arg1 result. post f arg1 result <-> 
+      let f = result in forall arg2 result. post f arg2 result <-> ...}
+      @param term 
+      @param l list of arguments *)
+  let rec multiple_args term l =
+    let mk_binder n = Loc.dummy_position, Some (H.mk_id n), false, None in 
+    match l with 
+    |[] -> term 
+    |arg::t ->
+    let term = H.mk_equiv
+        (Effect.mk_post_term arg) 
+        term in
+    let binders = 
+      [mk_binder arg; mk_binder "old_state"; mk_binder "state"; mk_binder "result"] in
+    let term =
+      H.mk_term (Tquant (
+        Why3.Dterm.DTforall, binders, [], term
+      )) in 
+    let term = H.mk_term (
+      Tlet(H.mk_id "f", H.mk_tid "result", term)) in 
+      multiple_args term t in
+  
+  let term = H.mk_term (Tlet (T.mk_id "f", H.mk_tid "result", forall)) in 
+  let full_term = multiple_args term (List.tl a) in
+  let post = Loc.dummy_position, [T.mk_pattern (Pvar (T.mk_id "result")), full_term] in   
+  let kont_type = List.fold_left 
+      (fun acc t -> PTtyapp(Qident(T.mk_id "lambda"), [t; acc]))
+      (PTtyapp(Qident (T.mk_id "lambda"), [List.hd t; ret_type])) (List.tl t) in 
+      let value = 
+        mk_expr (
+          Eany([Loc.dummy_position, None, false, PTtuple[]], Expr.RKnone, 
+              Some kont_type ,T.mk_pattern Pwild, Ity.MaskVisible, {empty_spec with sp_post = [post]})
+        ) in 
+  let lambda = 
+      Elet(T.mk_id "h", false, Expr.RKnone, value, 
+        mk_expr (Eapply (mk_expr (Eident (Qident (T.mk_id "h"))), mk_expr (Etuple []))))
+  in  
+    let vc = 
+      Efun(List.map2 (fun v t -> Loc.dummy_position, Some (H.mk_id v), false, Some t) args arg_types, 
+           Some ret_type, T.mk_pattern Pwild, Ity.MaskVisible, spec, f_e) in 
+  Elet(H.mk_id "vc",false, Expr.RKnone, mk_expr vc, mk_expr lambda)
+  
 
 (** Translates an effect handler into a corresponding WhyML representation. 
     Simply put, we transform every branch into an exception branch, 

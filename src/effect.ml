@@ -78,6 +78,7 @@ let mk_state_term is_old =
     @param t the term we want to wrap the pattern match around 
     *)
 let wrap ?(s_name = None) is_old t =
+  if t.term_desc = Ttrue then t else 
   let s = 
     match s_name with 
     |Some s -> s
@@ -85,6 +86,7 @@ let wrap ?(s_name = None) is_old t =
   let prefix = if is_old then "old_" else "" in 
   let seq = Map.to_seq !tl_ref_types in
   let vl = List.of_seq (Seq.map (fun (s, _) -> T.mk_pattern (Pvar (T.mk_id (prefix ^ s)))) seq) in 
+  (*if vl = [] then t else*) 
   let pat = T.mk_pattern (Ptuple vl) in 
   T.mk_term (Tcase (H.mk_tid s, [pat, t]))
 
@@ -114,5 +116,5 @@ let mk_pre_term arg_name =
     (Tidapp (Qident (T.mk_id "pre"), 
       [H.mk_tid "f"; 
       H.mk_tid arg_name; 
-      H.mk_tid "old_state"])
+      H.mk_tid "state"])
   ))
