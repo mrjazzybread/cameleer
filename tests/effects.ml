@@ -1,8 +1,8 @@
 let curr_exp : exp ref = ref (Const 0) 
 
-type _ eff += Div_by_zero : int eff
-
 type exp = Const of int | Div of exp * exp
+
+type _ eff += Div_by_zero : int eff
 
 
 (*@function eval_ind (exp : exp) : int =

@@ -68,15 +68,16 @@ let mk_state_term is_old =
     let id = H.mk_tid s in 
     let bang = H.mk_tid (Why3.Ident.op_prefix "!") in 
     let t = T.mk_term (Tapply (bang, id)) in 
-    if is_old then T.mk_term (Tat(t, T.mk_id "'Old")) else t) seq) in 
-  T.mk_term (Ttuple tl)
+    let t = if is_old then T.mk_term (Tat(t, T.mk_id "'Old")) else t in 
+    Qident (H.mk_id ("_" ^ s)), t) seq) in 
+  T.mk_term (Trecord tl)
 
-(** Given a term {!t} creates a new term term
+(* Given a term {!t} creates a new term term
     {!match state with |(v1, v2, ...) -> t}
     
     @param is_old if we are going to pattern match over the old state or the new state 
     @param t the term we want to wrap the pattern match around 
-    *)
+    
 let wrap ?(s_name = None) is_old t =
   if t.term_desc = Ttrue then t else 
   let s = 
@@ -88,16 +89,16 @@ let wrap ?(s_name = None) is_old t =
   let vl = List.of_seq (Seq.map (fun (s, _) -> T.mk_pattern (Pvar (T.mk_id (prefix ^ s)))) seq) in 
   (*if vl = [] then t else*) 
   let pat = T.mk_pattern (Ptuple vl) in 
-  T.mk_term (Tcase (H.mk_tid s, [pat, t]))
+  T.mk_term (Tcase (H.mk_tid s, [pat, t]))*)
 
 let state_exp n e = 
   let seq = Map.to_seq !tl_ref_types in
   let tl = List.of_seq (Seq.map (fun (s, _) -> 
     let id = H.mk_eid s in 
     let bang = H.mk_eid (Why3.Ident.op_prefix "!") in 
-    H.mk_expr (Eapply(bang, id)) 
+    Qident (H.mk_id ("_" ^ s)), H.mk_expr (Eapply(bang, id)) 
     ) seq) in 
-  let s = H.mk_expr (Etuple tl) in 
+  let s = H.mk_expr (Erecord tl) in 
   H.mk_expr (
     Elet(H.mk_id n, true, Expr.RKnone, s, e)
   )

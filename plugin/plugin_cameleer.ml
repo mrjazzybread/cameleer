@@ -142,14 +142,9 @@ let use_std_lib ref_decls types refs =
   let dummy_pos = Loc.dummy_position in
   let stdlib = Qdot (Qident (T.mk_id "ocamlstdlib"), T.mk_id "Stdlib") in
   let stdlib_fun = Qdot (Qident (T.mk_id "ocamlstdlib"), T.mk_id "Stdlib_fun") in
-  let ref_types = Seq.map (fun (_, pty) -> pty) refs in 
-  let state_args = Seq.map (fun (x, _ ) -> 
-    let id = T.mk_term (Tident (Qident (T.mk_id x))) in 
-    let bang = T.mk_term (Tident (Qident (T.mk_id (Ident.op_prefix "!")))) in 
-    T.mk_fcall [bang; id]
-    ) refs in
-  let state_term = T.mk_term (Ttuple(List.of_seq state_args)) in 
-  let state_type = PTtuple (List.of_seq ref_types) in
+  let ref_types = Seq.map (fun (id, pty) -> mk_field ("_" ^ id) pty false true) refs in 
+  let state_term = Effect.mk_state_term false in 
+
   let state_type_decl = 
     {
       td_loc = Loc.dummy_position;
@@ -159,7 +154,7 @@ let use_std_lib ref_decls types refs =
       td_mut = false;
       td_inv = [];
       td_wit = None;
-      td_def = TDalias(state_type)
+      td_def = TDrecord(List.of_seq ref_types)
     }  in 
   let state_decl = Odecl.mk_dtype Loc.dummy_position [state_type_decl]  in
   let imports = 

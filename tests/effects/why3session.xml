@@ -20,10 +20,10 @@
   <proof prover="1"><result status="valid" time="0.01" steps="34"/></proof>
   </goal>
   <goal name="vc1&#39;vc.3" expl="precondition" proved="true">
-  <proof prover="1"><result status="valid" time="0.03" steps="51"/></proof>
+  <proof prover="1"><result status="valid" time="0.03" steps="47"/></proof>
   </goal>
   <goal name="vc1&#39;vc.4" expl="postcondition" proved="true">
-  <proof prover="1"><result status="valid" time="0.01" steps="40"/></proof>
+  <proof prover="1"><result status="valid" time="0.01" steps="33"/></proof>
   </goal>
   <goal name="vc1&#39;vc.5" expl="check division by zero" proved="true">
   <proof prover="1"><result status="valid" time="0.01" steps="14"/></proof>
@@ -39,66 +39,66 @@
  <transf name="smoke_detector_deep" >
   <goal name="main&#39;vc.0" expl="VC for main">
   <proof prover="0" obsolete="true"><result status="timeout" time="5.00"/></proof>
-  <proof prover="1"><result status="unknown" time="0.15"/></proof>
+  <proof prover="1" obsolete="true"><result status="unknown" time="0.15"/></proof>
   <proof prover="2" obsolete="true"><result status="timeout" time="5.00"/></proof>
   </goal>
  </transf>
  <transf name="smoke_detector_top" >
   <goal name="main&#39;vc.0" expl="VC for main">
   <proof prover="0" obsolete="true"><result status="timeout" time="5.00"/></proof>
-  <proof prover="1"><result status="unknown" time="0.12"/></proof>
+  <proof prover="1" obsolete="true"><result status="unknown" time="0.12"/></proof>
   </goal>
  </transf>
  <transf name="split_vc" proved="true" >
   <goal name="main&#39;vc.0" expl="postcondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.02" steps="7303"/></proof>
-  <proof prover="1"><result status="valid" time="0.02" steps="4"/></proof>
+  <proof prover="0"><result status="valid" time="0.02" steps="7095"/></proof>
+  <proof prover="1" obsolete="true"><result status="valid" time="0.02" steps="4"/></proof>
   <transf name="smoke_detector_deep" >
    <goal name="main&#39;vc.0.0" expl="VC for main">
-   <proof prover="0"><result status="timeout" time="5.00"/></proof>
+   <proof prover="0" obsolete="true"><result status="timeout" time="5.00"/></proof>
    <proof prover="1"><result status="unknown" time="0.12"/></proof>
    </goal>
   </transf>
   <transf name="smoke_detector_top" >
    <goal name="main&#39;vc.0.0" expl="VC for main">
-   <proof prover="0"><result status="timeout" time="5.00"/></proof>
+   <proof prover="0" obsolete="true"><result status="timeout" time="5.00"/></proof>
    <proof prover="1"><result status="unknown" time="0.14"/></proof>
    </goal>
   </transf>
   </goal>
   <goal name="main&#39;vc.1" expl="precondition" proved="true">
   <proof prover="0" obsolete="true"><result status="timeout" time="5.00"/></proof>
-  <proof prover="1"><result status="valid" time="0.02" steps="30"/></proof>
+  <proof prover="1"><result status="valid" time="0.02" steps="21"/></proof>
   </goal>
   <goal name="main&#39;vc.2" expl="precondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.03" steps="7727"/></proof>
+  <proof prover="0"><result status="valid" time="0.03" steps="7449"/></proof>
   <proof prover="1" obsolete="true"><result status="valid" time="0.01" steps="10"/></proof>
   <transf name="smoke_detector_deep" >
    <goal name="main&#39;vc.2.0" expl="VC for main">
-   <proof prover="0"><result status="timeout" time="5.00"/></proof>
-   <proof prover="1"><result status="unknown" time="0.36"/></proof>
+   <proof prover="0" obsolete="true"><result status="timeout" time="5.00"/></proof>
+   <proof prover="1"><result status="unknown" time="0.16"/></proof>
    </goal>
   </transf>
   <transf name="smoke_detector_top" >
    <goal name="main&#39;vc.2.0" expl="VC for main">
-   <proof prover="0"><result status="timeout" time="5.00"/></proof>
+   <proof prover="0" obsolete="true"><result status="timeout" time="5.00"/></proof>
    <proof prover="1"><result status="unknown" time="0.22"/></proof>
    </goal>
   </transf>
   </goal>
   <goal name="main&#39;vc.3" expl="postcondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.02" steps="113105"/></proof>
+  <proof prover="0"><result status="valid" time="0.02" steps="108434"/></proof>
   <proof prover="1" obsolete="true"><result status="valid" time="0.03" steps="28"/></proof>
   <transf name="smoke_detector_deep" >
    <goal name="main&#39;vc.3.0" expl="VC for main">
-   <proof prover="0"><result status="timeout" time="5.00"/></proof>
-   <proof prover="1"><result status="timeout" time="5.00"/></proof>
+   <proof prover="0" obsolete="true"><result status="timeout" time="5.00"/></proof>
+   <proof prover="1"><result status="unknown" time="0.16"/></proof>
    </goal>
   </transf>
   <transf name="smoke_detector_top" >
    <goal name="main&#39;vc.3.0" expl="VC for main">
-   <proof prover="0"><result status="timeout" time="5.00"/></proof>
-   <proof prover="1"><result status="timeout" time="5.00"/></proof>
+   <proof prover="0" obsolete="true"><result status="timeout" time="5.00"/></proof>
+   <proof prover="1"><result status="unknown" time="0.15"/></proof>
    </goal>
   </transf>
   </goal>

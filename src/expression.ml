@@ -794,8 +794,8 @@ and defun info expr spec =
   let final_arg = List.hd a in 
   let post_app = Effect.mk_post_term final_arg in (*post f arg old_state state result*)
   let pre_app = Effect.mk_pre_term final_arg in (*pre f arg state *)
-  let post_term = Effect.wrap true (Effect.wrap false (H.fold_terms (List.map H.term_of_post spec.sp_post))) in (*Q1 && Q2 && ...*)
-  let pre_term = Effect.wrap false (H.fold_terms spec.sp_pre) in (*P1 && P2 && ...*)
+  let post_term =  (H.fold_terms (List.map H.term_of_post spec.sp_post)) in (*Q1 && Q2 && ...*)
+  let pre_term = H.fold_terms spec.sp_pre in (*P1 && P2 && ...*)
   let post = H.mk_equiv post_app post_term in (*post f ... <-> Q1...*)
   let pre = H.mk_equiv pre_app pre_term in (*pre f ...* <-> P1 ... *)
   let forall = H.mk_term (
@@ -874,7 +874,7 @@ let gen_kont_spec eff_name ret pconds =
 
   let post_binders = 
     [Helper.mk_binder "reply" eff_type; 
-    Helper.mk_binder "old_state" state_type; 
+    Helper.mk_binder "_old_state" state_type; 
     Helper.mk_binder "state" state_type ; 
     Helper.mk_binder "result" ret] in
 
@@ -889,21 +889,24 @@ let gen_kont_spec eff_name ret pconds =
     H.mk_tid "eff_state";
     H.mk_tid "state";
     H.mk_tid "reply"] in 
-  let iff = Why3.Dterm.DTiff in 
+  let iff = Why3.Dterm.DTiff in
   let pre_cond = 
     H.mk_term (Tbinnop(pre_call, iff, prot_post)) in
   
+  let pre_cond =
+    H.mk_term (Tlet(H.mk_id "old_state", H.mk_tid "eff_state", pre_cond)) in
+
   let post_call = T.mk_fcall
     [H.post; H.mk_tid "f";
     H.mk_tid "reply";
-    H.mk_tid "old_state";
+    H.mk_tid "_old_state";
     H.mk_tid "state";
     H.mk_tid "result"
     ] in 
   let terms = List.map (T.term ~in_pred:true true) pconds in 
   let kont_post = H.fold_terms terms in 
-  let kont_post = Effect.wrap false kont_post in 
-  let kont_post = Effect.wrap ~s_name:(Some "init_state") true kont_post in 
+  let kont_post = 
+    H.mk_term (Tlet(H.mk_id "old_state", H.mk_tid "init_state", kont_post)) in
   let post_cond = 
     H.mk_term (Tbinnop(post_call, iff, kont_post)) in 
 
@@ -915,7 +918,7 @@ let gen_kont_spec eff_name ret pconds =
   let valid = T.mk_fcall [H.mk_tid "valid"; H.mk_tid "result"] in 
   let postcondition = (Tlet (H.mk_id "f", f_term, H.mk_term quant_post)) in
   let precondition = (Tlet (H.mk_id "f", f_term, H.mk_term quant_pre)) in
-  {   Vspec.empty_spec with 
+  {Vspec.empty_spec with 
       sp_post = 
         [mk_post valid;
          mk_post (H.mk_term postcondition);

@@ -377,17 +377,13 @@ let fold_terms terms =
   List.fold_right  (fun t1 t2 -> T.mk_term (Tbinop(T.term ~in_pred:true true t1, DTand ,t2))) terms (T.mk_term Ttrue) 
 
 (*auxiliary function to create pre and post predicates for the protocol*)
-let mk_protocol_logic name is_post args terms params =
+let mk_protocol_logic name args terms params =
     (*creates a term with the following sturcture {!match request with |prot_name a1 a2 -> t |_ -> false end}*)
   let mk_match t =
     let valid_pat = T.mk_pattern (Ptuple (List.map T.pattern args)) in
     let branch = [valid_pat, t] in
     T.mk_term (Tcase (mk_tid (T.mk_id "request"), branch)) in
   let term = fold_terms terms in
-  let term = 
-    if is_post 
-      then wrap true (wrap false term)
-      else wrap false term in
   O.mk_dlogic Loc.dummy_position None 
     [{  ld_loc=Loc.dummy_position;
         ld_ident= name;
@@ -457,9 +453,9 @@ let setup_protocol prot =
   (*definition of the predicates containing the pre and post conditions*)
   
   let protocol_pre = 
-    mk_protocol_logic pre_name false prot.pro_args prot.pro_pre [effect_param; state_param]  in 
+    mk_protocol_logic pre_name prot.pro_args prot.pro_pre [effect_param; state_param]  in 
   let protocol_post = 
-    mk_protocol_logic post_name true prot.pro_args prot.pro_post [effect_param;old_state_param; state_param; reply_param] in 
+    mk_protocol_logic post_name prot.pro_args prot.pro_post [effect_param;old_state_param; state_param; reply_param] in 
   
   (*definition of the abstract perform function*)
   let perform_pre =

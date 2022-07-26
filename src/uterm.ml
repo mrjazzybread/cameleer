@@ -100,7 +100,8 @@ let binder (id, ty) =
 let rm_old t = 
   match t with 
   |Tapply ({term_desc = Tident (Qident {id_str = "(!)";_});_}, {term_desc = Tident (Qident id);_})  -> 
-      Tident (Qident {id with id_str="old_" ^id.id_str})
+      let t = mk_term (Tident (Qident {id with id_str="_" ^id.id_str})) in 
+      Tapply (t, Helper.mk_tid "old_state")
   |_ -> assert false 
 
 
@@ -115,6 +116,11 @@ let is_deref q =
   match q with 
   |Uast.Qpreid {pid_str;_} -> pid_str = prefix "!"
   |_ -> false
+
+let get_id t = 
+  match t.Uast.term_desc with 
+  |Uast.Tpreid (Qpreid id) -> id.pid_str
+  |_ -> assert false
 
   let rec term ?(in_pred=false) in_post Uast.{ term_desc = t_desc; term_loc } =
   let term_loc = location term_loc in
@@ -136,7 +142,8 @@ let is_deref q =
     | Uast.Tconst c -> Tconst (constant c)
     | Uast.Tpreid id -> Tident (qualid id)
     | Uast.Tidapp (q, [t]) when is_deref q && in_pred -> 
-      (term ~in_pred in_post t).term_desc
+      let id = get_id t in 
+      Tapply(Helper.mk_tid ("_" ^ id), Helper.mk_tid "state")
     | Uast.Tidapp(q, tl) -> Tidapp (qualid q, List.map (term ~in_pred in_post) tl)
     | Uast.Tfield (t, q) -> Tidapp (qualid q, [ term ~in_pred in_post t ])
     | Uast.Tapply (t1, t2) -> 
