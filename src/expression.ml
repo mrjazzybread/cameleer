@@ -867,22 +867,27 @@ let gen_kont_spec eff_name ret pconds =
   let eff_type = Effect.get_effect_type eff_name in
   let state_type = Effect.get_state_type () in  
 
-  let binders = 
+  let pre_binders = [
+    Helper.mk_binder "reply" eff_type;
+    Helper.mk_binder "state" state_type
+  ] in
+
+  let post_binders = 
     [Helper.mk_binder "reply" eff_type; 
     Helper.mk_binder "old_state" state_type; 
     Helper.mk_binder "state" state_type ; 
     Helper.mk_binder "result" ret] in
-  
+
   let pre_call = T.mk_fcall 
     [H.pre; H.mk_tid "f"; 
     H.mk_tid "reply"; 
-    H.mk_tid "old_state"] in
+    H.mk_tid "state"] in
 
   let prot_post = T.mk_fcall 
     [H.mk_tid ("post_" ^ eff_name);
     H.mk_tid "req";
     H.mk_tid "eff_state";
-    H.mk_tid "old_state";
+    H.mk_tid "state";
     H.mk_tid "reply"] in 
   let iff = Why3.Dterm.DTiff in 
   let pre_cond = 
@@ -902,14 +907,19 @@ let gen_kont_spec eff_name ret pconds =
   let post_cond = 
     H.mk_term (Tbinnop(post_call, iff, kont_post)) in 
 
-  let cond = H.mk_term (Tbinnop(pre_cond, Why3.Dterm.DTand, post_cond)) in 
-  let quant = 
-    Tquant(Why3.Dterm.DTforall, binders, [], cond) in 
+  let quant_post = 
+    Tquant(Why3.Dterm.DTforall, post_binders, [], post_cond) in 
+  let quant_pre = 
+    Tquant(Why3.Dterm.DTforall, pre_binders, [], pre_cond) in
   let f_term = T.mk_fcall [H.mk_tid "k"; H.mk_tid "result"] in
   let valid = T.mk_fcall [H.mk_tid "valid"; H.mk_tid "result"] in 
-  let term = H.mk_term (Tbinnop(valid, Why3.Dterm.DTand, H.mk_term quant)) in
-  let postcondition = (Tlet (H.mk_id "f", f_term, term)) in
-  {Vspec.empty_spec with sp_post = [mk_post (T.mk_term postcondition)] }in 
+  let postcondition = (Tlet (H.mk_id "f", f_term, H.mk_term quant_post)) in
+  let precondition = (Tlet (H.mk_id "f", f_term, H.mk_term quant_pre)) in
+  {   Vspec.empty_spec with 
+      sp_post = 
+        [mk_post valid;
+         mk_post (H.mk_term postcondition);
+         mk_post (H.mk_term precondition)] }in 
 
 (* Translates a single branch of the effect handler
     The handler will be translated almost verbatim with the only notable differences being in 

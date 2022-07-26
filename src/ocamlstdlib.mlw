@@ -31,11 +31,16 @@ module Stdlib_fun
 
   type state
 
+  meta coercion function k
+
   predicate pre (lambda 'a 'b) 'a state
   predicate post (lambda 'a 'b) 'a state state 'b  
 
   predicate no_pre (f : lambda 'a 'b) =
     forall arg state. pre f arg state
+
+  predicate purel (f : lambda 'a 'b) =
+    forall a s1 s2 r. post f a s1 s2 r -> s1 = s2  
 
   val ignore (_: 'a) : unit
 

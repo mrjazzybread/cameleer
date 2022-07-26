@@ -1,1 +1,1 @@
-dune build && dune install && cameleer --debug tests/test.ml 
+dune build && dune install && cameleer --debug tests/effects.ml 
