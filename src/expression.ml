@@ -919,7 +919,7 @@ let gen_kont_spec eff_name ret pconds =
       sp_post = 
         [mk_post valid;
          mk_post (H.mk_term postcondition);
-         mk_post (H.mk_term precondition)] }in 
+         mk_post (H.mk_term precondition) ] }in 
 
 (* Translates a single branch of the effect handler
     The handler will be translated almost verbatim with the only notable differences being in 

@@ -29,7 +29,7 @@ let rec eval (e : exp) : int =
       let eval_l = eval e1 in 
       let l = !curr_exp in 
       let eval_r = eval e2 in 
-      curr_exp:= Div(l, !curr_exp);
+      curr_exp := Div(l, !curr_exp);
       if eval_r = 0 
          then perform Div_by_zero
          else eval_l / eval_r

@@ -48,8 +48,8 @@ let get_effect_type e =
 
 let get_state_type () =
   let seq = Map.to_seq !tl_ref_types in
-  let ptyl = List.of_seq (Seq.map (fun (_, pty) -> pty) seq) in 
-  PTtuple ptyl 
+  let _ptyl = List.of_seq (Seq.map (fun (_, pty) -> pty) seq) in
+  PTtyapp(Qident (H.mk_id "_state"), [])
 
 let writes_clause () = 
   let seq = Map.to_seq !tl_ref_types in 

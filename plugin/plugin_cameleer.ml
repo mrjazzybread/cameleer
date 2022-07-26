@@ -149,17 +149,31 @@ let use_std_lib ref_decls types refs =
     T.mk_fcall [bang; id]
     ) refs in
   let state_term = T.mk_term (Ttuple(List.of_seq state_args)) in 
-  let state_type = PTtuple (List.of_seq ref_types) in 
+  let state_type = PTtuple (List.of_seq ref_types) in
+  let state_type_decl = 
+    {
+      td_loc = Loc.dummy_position;
+      td_ident = H.mk_id "_state";
+      td_params = [];
+      td_vis = Public;
+      td_mut = false;
+      td_inv = [];
+      td_wit = None;
+      td_def = TDalias(state_type)
+    }  in 
+  let state_decl = Odecl.mk_dtype Loc.dummy_position [state_type_decl]  in
   let imports = 
     Odecl.mk_cloneexport stdlib []
   in
   let use_stdlib =
     Odecl.mk_cloneexport stdlib_fun
-     [CStsym ( Qident (T.mk_id "state"), [], state_type);
+     [CStsym ( Qident (T.mk_id "state"), [], PTtyapp(Qident (H.mk_id "_state"), []));
       CStsym ( Qident (T.mk_id "exn"), [], PTtyapp(Qident(T.mk_id "exn"), []));
       CSprop ( Decl.Paxiom ) ]
   in
-  [imports]@ types @ ref_decls @[use_stdlib;
+  [imports]@ types @ ref_decls @[
+  state_decl;
+  use_stdlib;
   Odecl.mk_odecl dummy_pos (apply state_term true);
   Odecl.mk_odecl dummy_pos (apply state_term false);
   ]
