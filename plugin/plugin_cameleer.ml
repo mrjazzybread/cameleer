@@ -419,7 +419,18 @@ let read_channel env path file c =
     List.partition 
       (fun x -> match x.sstr_desc with |Uast.Str_type _ -> true |_ -> false) 
       f in 
+  let clear_dummy_open l = 
+    match l with 
+    |{sstr_desc = Uast.Str_open{popen_expr=op;_};_} :: t ->
+      begin
+        match op.pmod_desc with 
+        |Pmod_ident {txt =Lident id;_} when id = "Dummy_effect" -> t 
+        |_ -> l
+      end  
+    |_ -> l in 
+  let program = clear_dummy_open program in 
   let refs, program = add_state_var program in
+  assert (refs <> []);
   let types = Declaration.s_structure info types in 
   let refs = Declaration.s_structure info refs in 
   let use_std_lib = use_std_lib refs types (Map.to_seq !tl_ref_types) in 

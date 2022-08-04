@@ -1,6 +1,7 @@
-let curr_exp : exp ref = ref (Const 0) 
+open Dummy_effect
 
 type exp = Const of int | Div of exp * exp
+let curr_exp : exp ref = ref (Const 0) 
 
 type _ eff += Div_by_zero : int eff
 
