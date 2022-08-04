@@ -376,20 +376,21 @@ let mk_tid id = T.mk_term (Tident (Qident id))
 let fold_terms terms =  
   List.fold_right  (fun t1 t2 -> T.mk_term (Tbinop(T.term ~in_pred:true true t1, DTand ,t2))) terms (T.mk_term Ttrue) 
 
+(*creates a term with the following sturcture {!match request with |prot_name a1 a2 -> t |_ -> false end}*)
+let mk_match args t =
+  let valid_pat = T.mk_pattern (Ptuple (List.map T.pattern args)) in
+  let branch = [valid_pat, t] in
+  T.mk_term (Tcase (mk_tid (T.mk_id "request"), branch))
+
 (*auxiliary function to create pre and post predicates for the protocol*)
 let mk_protocol_logic name args terms params =
-    (*creates a term with the following sturcture {!match request with |prot_name a1 a2 -> t |_ -> false end}*)
-  let mk_match t =
-    let valid_pat = T.mk_pattern (Ptuple (List.map T.pattern args)) in
-    let branch = [valid_pat, t] in
-    T.mk_term (Tcase (mk_tid (T.mk_id "request"), branch)) in
   let term = fold_terms terms in
   O.mk_dlogic Loc.dummy_position None 
     [{  ld_loc=Loc.dummy_position;
         ld_ident= name;
         ld_params=params;
         ld_type = None;
-        ld_def = Some (mk_match term)
+        ld_def = Some (mk_match args term)
         }]
 
 let mk_param id t =
@@ -422,8 +423,8 @@ let exn_of_eff t =
   contains the protocols precondition and another that contains
   protocol's post condition. Additionally, we will also create 
   a {!perform} function that receives an effect and returns the type
-  the effect named after the protocol returns. If the field is {!None}
-  the return type is unit. This {!perform} function's specification will consist 
+  the effect named after the protocol returns. 
+  This {!perform} function's specification will consist 
   of the protocol's pre and post condition, as well as a {!writes} clause
   with the variables modified by the protocol. The two predicates will receive the 
   performed effected, the state prior to the effect being performed and, 
@@ -451,19 +452,28 @@ let setup_protocol prot =
   let effect_param = mk_param (T.mk_id "request") eff_param_type in
   
   (*definition of the predicates containing the pre and post conditions*)
-  
+
   let protocol_pre = 
     mk_protocol_logic pre_name prot.pro_args prot.pro_pre [effect_param; state_param]  in 
   let protocol_post = 
     mk_protocol_logic post_name prot.pro_args prot.pro_post [effect_param;old_state_param; state_param; reply_param] in 
-  
   (*definition of the abstract perform function*)
-  let perform_pre =
+  
+  let pre_terms = List.map (fun t -> let t = T.term false t in mk_match prot.pro_args t) prot.pro_pre in
+  let post_terms = 
+    List.map 
+    (fun t -> 
+      let t = T.term true t in 
+      let t = H.mk_term (Tlet (H.mk_id "reply", H.mk_tid "result", t)) in 
+      mk_match prot.pro_args t) 
+    prot.pro_post in 
+
+  let _perform_pre =
     T.mk_fcall [mk_tid pre_name; mk_tid (T.mk_id "request"); mk_state_term false] in  
-  let perform_post =
+  let _perform_post =
     T.mk_fcall [mk_tid post_name; mk_tid (T.mk_id "request"); mk_state_term true; mk_state_term false; mk_tid (T.mk_id "result")]
      in
-  let spec = Vspec.mk_spec perform_pre perform_post (List.map (fun s -> mk_tid (T.preid s)) prot.pro_writes) in 
+  let spec = Vspec.mk_spec pre_terms post_terms (List.map (fun s -> mk_tid (T.preid s)) prot.pro_writes) in 
   let protocol_perfrom = Eany (
       [effect_param], Expr.RKnone, Some t, T.mk_pattern Pwild, Ity.MaskVisible, spec) in   
   let perform_decl = 
@@ -581,37 +591,53 @@ let s_structure, s_signature =
     let is_ghost_let svb_list = List.exists is_ghost_svb svb_list in
     let id_expr_rs_kind_of_svb svb_list =
       let s_value_binding = E.s_value_binding info in 
-      (rs_kind svb_list, List.flatten (List.map s_value_binding svb_list))
+      (rs_kind svb_list, (List.map s_value_binding svb_list))
     in
     match str_item_desc with
     | Uast.Str_value (Nonrecursive, svb_list) -> 
       (
         match id_expr_rs_kind_of_svb svb_list with
-        | rs_kind, [ id, expr ] ->
+        | rs_kind, [id, expr, None] ->
             let ghost = is_ghost_let svb_list in
-            let rs_kind, expr =
-              (*if List.exists is_const_svb svb_list then
+            (*let rs_kind, expr =
+              if List.exists is_const_svb svb_list then
                 (Expr.RKfunc, mk_const svb_list expr)
-              else *)  (rs_kind, expr)
-            in
+              else   (rs_kind, expr)
+            in*)
             [O.mk_odecl loc (Dlet (id, ghost, rs_kind, expr))]
-        | _ -> assert false (* no multiple bindings here *))
+          |rs_kind, [id, expr, Some dummy] ->
+            let expr = 
+              H.mk_expr 
+                (Elet (id, false, rs_kind,  expr, E.mk_expr (Etuple[]))) in 
+            
+            [O.mk_odecl loc (Dlet (H.mk_id (vc()), false, rs_kind, expr));
+             O.mk_odecl loc (Dlet (id, false, rs_kind, dummy))]
+
+        | _ -> assert false )  (*no multiple bindings here*)
     (* FIXME? I am not sure I agree with this last comment. I am almost
        positive that multiple bindings in non-recursive values means a
        list of `and` bindings. These could be easily translated into a
        list of `let..in` bindings *)
     | Uast.Str_value (Recursive, svb_list) ->
         let rs_kind, id_fun_expr_list = id_expr_rs_kind_of_svb svb_list in
-        let funs, dummy = 
-          (*Probably bad, should change*)
+        (*let funs, dummy = 
+          Probably bad, should change
           let rec split l = 
             match l with 
             |[] -> [], []
             |[x] -> [x], []
             |(id1, e1)::(id2, e2)::t ->
-              if id1 = id2 then 
-                let f, d = split t in (id1, e1)::f, (id2, e2)::d 
-                else let f, d = split t in (id1, e1)::f,d in split id_fun_expr_list in 
+              let f, d = split t in
+              if id1 = id2  
+                then (id1, e1)::f, (id2, e2)::d 
+                else (id1, e1)::f, d in split id_fun_expr_list in *)
+        let funs = List.map (fun (id, f, _) -> id, f) id_fun_expr_list in 
+        let dummy = 
+          List.filter_map 
+            (fun (id, _, d) -> 
+              match d with
+              |Some d -> Some (id, d)
+              |None -> None) id_fun_expr_list in 
         let ghost = is_ghost_let svb_list in
         let rec_fun = List.map (E.mk_fun_def ghost rs_kind) funs in
         if dummy = [] then 

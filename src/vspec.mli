@@ -7,4 +7,4 @@ val empty_spec : Ptree.spec
 val vspec : Uast.val_spec -> Ptree.spec
 val fun_spec : Uast.fun_spec -> Ptree.spec
 val spec_union : Ptree.spec -> Ptree.spec -> Ptree.spec
-val mk_spec : Ptree.term -> Ptree.term -> Ptree.term list -> Ptree.spec 
+val mk_spec : Ptree.term list -> Ptree.term list -> Ptree.term list -> Ptree.spec 

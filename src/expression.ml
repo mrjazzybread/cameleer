@@ -225,7 +225,12 @@ let gen_eff_post effs=
     we would have to build one automatically.
     *)
 let create_dummy args pty ret spec effs =
-  let args = List.map (fun (a, b, c, d) -> match d with |Some d -> (a, b, c, d) |_ -> assert false) args in
+  let args = List.map 
+            (fun (a, b, c, d) -> 
+            match d, b with 
+            |Some d, _ -> (a, b, c, d) 
+            |None, None -> (a, b, c, PTtuple [])
+            |_ -> assert false) args in
   let pty = match pty with |Some pty -> pty |_ -> assert false in
   let eff_post = gen_eff_post effs in 
   Eany(args, Expr.RKnone,
@@ -605,7 +610,8 @@ let rec expression_desc info expr_loc expr_desc =
     else Expr.RKnone
   in
   let id_expr_rs_kind_of_svb_list svb_list =
-    (rs_kind svb_list, List.flatten (List.map (fun svb -> s_value_binding info svb) svb_list))
+    (rs_kind svb_list, List.map (fun svb ->
+      let id, e, _ = s_value_binding info svb in id, e) svb_list)
   in
   let is_false = function
     | Uast.Sexp_construct ({ txt = Lident "false"; _ }, None) -> true
@@ -892,9 +898,6 @@ let gen_kont_spec eff_name ret pconds =
   let iff = Why3.Dterm.DTiff in
   let pre_cond = 
     H.mk_term (Tbinnop(pre_call, iff, prot_post)) in
-  
-  let pre_cond =
-    H.mk_term (Tlet(H.mk_id "old_state", H.mk_tid "eff_state", pre_cond)) in
 
   let post_call = T.mk_fcall
     [H.post; H.mk_tid "f";
@@ -1030,7 +1033,7 @@ and let_match info expr svb =
       mk_ematch_no_exn svb_expr [ (Opt.get pat.pat_term, expr) ]
   | _ ->
       match s_value_binding info svb with 
-      |[id, svb_expr] -> mk_elet_none id (is_ghost_svb svb) svb_expr expr
+      |(id, svb_expr, None) -> mk_elet_none id (is_ghost_svb svb) svb_expr expr
       |_ -> assert false
 and special_binder expr { binder_info_desc; binder_info_loc = loc } =
   let mk_let_pat binder_expr (id_field, id_pat) e_rhs =
@@ -1209,6 +1212,5 @@ and s_value_binding info svb =
   in
   let id = id_of_pat svb.spvb_pat in
   let exp, dummy =  mk_svb_expr pexp in 
-  let l = match dummy with |Some e -> [id, e] |None -> [] in 
   Effect.flush_fun_types ();
-  (id,exp)::l
+  id, exp, dummy 

@@ -6,9 +6,9 @@ open Why3
 open Ptree
 let exn_name = "exn"
 
-let n_vcs = ref 0
-
-let vc () = n_vcs := !n_vcs + 1; "vc" ^ (string_of_int (!n_vcs))
+let vc = 
+  let n_vcs = ref 0 in 
+  fun () -> n_vcs := !n_vcs + 1; "vc" ^ (string_of_int (!n_vcs))
 
 (**auxiliary variables and functions to map effect names to the types they return*)
 let effect_types : (pty Map.t) ref = ref Map.empty
@@ -17,8 +17,14 @@ let tl_ref_types : (pty Map.t) ref = ref Map.empty
 
 let arg_fun_types : (pty Map.t) ref = ref Map.empty
 
+let effect_terms : ((term list * term list) Map.t) ref = ref Map.empty
+
+let map_terms e pre post =
+  effect_terms := Map.add e (pre, post) !effect_terms  
+
 let map_effect e t =
   effect_types := Map.add e t (!effect_types)
+
 
 let map_ref_type r t =
   print_endline r;

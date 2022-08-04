@@ -87,8 +87,8 @@ let vspec spec =
 
 let mk_spec pre post w = 
   {
-    sp_pre = [pre];
-    sp_post = [Helper.mk_why_post post];
+    sp_pre = pre;
+    sp_post = List.map Helper.mk_why_post post;
     sp_xpost = [];
     sp_reads = [];
     sp_writes = w;
