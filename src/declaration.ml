@@ -11,10 +11,6 @@ module Tt = Tterm
 module E = Expression
 module O = Odecl
 
-
-
-
-
 let _mk_const svb_list expr =
   let p = T.mk_pattern Pwild in
   let mk_spec acc Uast.{ spvb_vspec; _ } =
@@ -405,7 +401,7 @@ let mk_param id t =
       or a top level declaration marked for the right list.
 *)
 let is_effect t =
-    Astlib.Longident.flatten t.ptyext_path.txt = ["eff"] 
+    Astlib.Longident.flatten t.ptyext_path.txt = ["Effect"; "t"] 
 
 let exn_of_eff t =  
   let exn_of_cons e = 

@@ -98,9 +98,10 @@ let binder (id, ty) =
   (location id.Preid.pid_loc, Some (preid id), false, Opt.map pty ty)
 
 let rm_old t = 
-  match t with 
-  |Tapply ({term_desc = Tident (Qident {id_str = "(!)";_});_}, {term_desc = Tident (Qident id);_})  -> 
-      let t = mk_term (Tident (Qident {id with id_str="_" ^id.id_str})) in 
+  match t.Uast.term_desc with 
+  |Uast.Tidapp (Qpreid {pid_str = "prefix !";_}, 
+  [{term_desc = Tpreid (Qpreid id);_}])  -> 
+      let t = mk_term (Tident (Qident {(preid id) with id_str="_" ^id.pid_str})) in 
       Tapply (t, Helper.mk_tid "old_state")
   |_ -> assert false 
 
@@ -162,7 +163,7 @@ let get_id t =
     | Uast.Tbinop (t1, op, t2) ->
         Tbinop (term ~in_pred in_post t1, binop op, term ~in_pred in_post t2)
     | Uast.Told t ->
-        if in_pred then rm_old (term ~in_pred in_post t).term_desc else
+        if in_pred then rm_old t else
         let lbl = if in_post then Dexpr.old_label else "'Old" in
         Tat (term ~in_pred in_post t, mk_id ~id_loc:term_loc lbl)
     | Uast.Tif (t1, t2, t3) ->

@@ -312,7 +312,7 @@ let mk_refine_modules info top_mod_name =
 let is_effect d =
   match d.sstr_desc with 
   |Str_typext t
-    when Longident.flatten t.ptyext_path.txt = ["eff"] -> Some t
+    when Longident.flatten t.ptyext_path.txt = ["Effect"; "t"] -> Some t
   |_ -> None
 
 (**Turns an OCaml constructor into a Why3 constructor
@@ -421,16 +421,11 @@ let read_channel env path file c =
       f in 
   let clear_dummy_open l = 
     match l with 
-    |{sstr_desc = Uast.Str_open{popen_expr=op;_};_} :: t ->
-      begin
-        match op.pmod_desc with 
-        |Pmod_ident {txt =Lident id;_} when id = "Dummy_effect" -> t 
-        |_ -> l
-      end  
+    |_::_::t -> t
     |_ -> l in 
   let program = clear_dummy_open program in 
+
   let refs, program = add_state_var program in
-  assert (refs <> []);
   let types = Declaration.s_structure info types in 
   let refs = Declaration.s_structure info refs in 
   let use_std_lib = use_std_lib refs types (Map.to_seq !tl_ref_types) in 

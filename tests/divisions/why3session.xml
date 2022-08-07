@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE why3session PUBLIC "-//Why3//proof session v5//EN"
+"http://why3.lri.fr/why3session.dtd">
+<why3session shape_version="6">
+<file format="ocaml">
+<path name=".."/><path name="divisions.ml"/>
+<theory name="Divisions">
+ <goal name="vc1&#39;vc" expl="VC for vc1">
+ </goal>
+ <goal name="main&#39;vc" expl="VC for main">
+ </goal>
+</theory>
+</file>
+</why3session>

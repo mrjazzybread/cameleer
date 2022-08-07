@@ -125,3 +125,13 @@ let mk_pre_term arg_name =
       H.mk_tid arg_name; 
       H.mk_tid "state"])
   ))
+
+let mk_post_binders arg = 
+  List.map 
+    (fun x -> (Loc.dummy_position, Some (H.mk_id x), false, None))
+    [arg; "state_old"; "state"; "result"]
+
+let mk_pre_binders arg = 
+  List.map 
+    (fun x -> (Loc.dummy_position, Some (H.mk_id x), false, None))
+    [arg; "state"]

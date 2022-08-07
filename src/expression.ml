@@ -160,7 +160,7 @@ let rec core_type P.{ ptyp_desc; ptyp_loc; _ } =
   | Ptyp_class _ -> assert false (* TODO *)
   | Ptyp_alias _ -> assert false (* TODO *)
   | Ptyp_variant _ -> assert false (* TODO *)
-  | Ptyp_poly _ -> assert false (* TODO *)
+  | Ptyp_poly (_, t) -> core_type t (* TODO *)
   | Ptyp_package _ -> assert false (* TODO *)
   | Ptyp_extension _ -> assert false
 (* TODO *)
@@ -173,7 +173,8 @@ let rec id_of_pat P.{ ppat_desc; _ } =
   | Ppat_constant _ -> assert false (* TODO *)
   | Ppat_interval _ -> assert false (* TODO *)
   | Ppat_tuple _ -> assert false (* TODO *)
-  | Ppat_construct _ -> assert false (* TODO *)
+  | Ppat_construct ({txt=Lident "()";loc}, None) -> H.mk_id ~id_loc:(T.location loc) "()"
+  | Ppat_construct _ -> assert false  (* TODO *)
   | Ppat_variant _ -> assert false (* TODO *)
   | Ppat_record _ -> assert false (* TODO *)
   | Ppat_array _ -> assert false (* TODO *)
@@ -639,6 +640,12 @@ let rec expression_desc info expr_loc expr_desc =
       Eident (longident ~id_loc:(T.location loc) txt)
   | Uast.Sexp_constant c -> Econst (T.constant c)
   | Uast.Sexp_let (Nonrecursive, [ svb ], expr) ->
+      let () = 
+        match svb.spvb_pat.ppat_desc with 
+        |Ppat_constraint(p, t) ->
+          let ty = T.defun_type (core_type t) in 
+          Effect.map_arg_type (id_of_pat p).id_str ty  
+        |_ -> () in
       let_match info (expression info expr) svb
   | Sexp_let (Nonrecursive, svbs, expr) ->
       let mk_let svb acc = mk_expr (let_match info acc svb) in
@@ -710,7 +717,7 @@ let rec expression_desc info expr_loc expr_desc =
   | Uast.Sexp_sequence (e1, e2) ->
       mk_eseq (expression info e1) (expression info e2)
   | Uast.Sexp_constraint (e, cty) ->
-      mk_ecast (expression info e) (core_type cty)
+      mk_ecast (expression info e) (T.defun_type (core_type cty))
   | Uast.Sexp_construct ({ txt = Lident "true"; _ }, None) -> Etrue
   | Uast.Sexp_construct ({ txt = Lident "false"; _ }, None) -> Efalse
   | Uast.Sexp_construct ({ txt = Lident "()"; _ }, None) -> mk_eunit
@@ -788,15 +795,63 @@ and defun info expr spec =
   let rec args f = 
     match f with 
     |Uast.Sexp_fun(_, _, 
-    {ppat_desc=Ppat_constraint({ppat_desc=Ppat_var v;_}, t);_}, e, _) -> 
+    {ppat_desc=Ppat_constraint({ppat_desc;_}, t);_}, e, _) -> 
+      let v = 
+        match ppat_desc with 
+        |Ppat_var v -> v.txt 
+        |Ppat_any -> "NONE" 
+        |_ -> assert false in 
       let args, v_types, r, e = args e.Uast.spexp_desc in  
-        v.txt::args, (core_type t)::v_types, r, e 
+        v::args, (core_type t)::v_types, r, e 
     |Uast.Sexp_constraint(e, core) -> [], [], core_type core, expression info e
     |_ -> assert false in 
   
     
-  let args, arg_types, ret_type, f_e = args expr in
-  let a, t = List.rev args, List.rev arg_types in
+  let args, arg_types, ret_type, f_e = args expr in 
+  let rec apply_arguments args is_pre term =
+    let term = 
+      match args with
+      |[x] when is_pre -> 
+        let pre_app = Effect.mk_pre_term x in 
+        let t = T.mk_term (Tbinnop(pre_app, Why3.Dterm.DTiff, term)) in
+        Tquant(Why3.Dterm.DTforall, Effect.mk_pre_binders x, [], t)
+      |[x] -> 
+        let post_app = Effect.mk_post_term x in 
+        let t = T.mk_term (Tbinnop(post_app, Why3.Dterm.DTimplies, term)) in
+        Tquant(Why3.Dterm.DTforall, Effect.mk_post_binders x, [], t)
+      |x::t -> 
+        let post_app = Effect.mk_post_term x in
+        let cond = apply_arguments t is_pre term in 
+        let imp = Tbinnop(post_app, Why3.Dterm.DTimplies, cond) in 
+        Tquant(Why3.Dterm.DTforall, Effect.mk_post_binders x, [], T.mk_term imp)
+      |[] -> assert false in  
+    T.mk_term (Tlet (H.mk_id "f", H.mk_tid "result", T.mk_term term)) in 
+  let rec valid_curry n_args = 
+    let arg_name = "arg" in 
+    let no_pre_term = 
+      let t = Tidapp (Qident (H.mk_id "f"), [H.mk_tid arg_name; H.mk_tid "state"]) in
+      Tquant(Why3.Dterm.DTforall, Effect.mk_pre_binders arg_name, [], T.mk_term t) in   
+    let term = 
+      match n_args with 
+      |2 -> no_pre_term
+      |n when n > 2 -> 
+        let rest = valid_curry (n - 1) in
+        let post_app = Effect.mk_post_term arg_name in 
+        let binders = Effect.mk_post_binders arg_name in 
+        let imp = Tbinnop(post_app, Why3.Dterm.DTimplies, rest) in 
+        let t = Tquant(Why3.Dterm.DTforall, binders, [], T.mk_term imp) in 
+        Tbinnop(T.mk_term no_pre_term, Why3.Dterm.DTand, T.mk_term t)
+      |_-> assert false in 
+    T.mk_term (Tlet (H.mk_id "f", H.mk_tid "result", T.mk_term term)) in
+  let term_list = if List.length args > 2 then [valid_curry (List.length args)] else [] in 
+  let term_list = (apply_arguments args true (H.fold_terms spec.sp_pre))::term_list in 
+  let post_list = List.map (fun p -> apply_arguments args false (H.term_of_post p)) spec.sp_post in 
+  let term_list = term_list@post_list in
+  let post_list = List.map (fun p -> Loc.dummy_position, [T.mk_pattern (Pvar (H.mk_id "result")), p]) term_list in 
+  
+  
+
+  (*
   let final_arg = List.hd a in 
   let post_app = Effect.mk_post_term final_arg in (*post f arg old_state state result*)
   let pre_app = Effect.mk_pre_term final_arg in (*pre f arg state *)
@@ -837,15 +892,21 @@ and defun info expr spec =
   
   let term = H.mk_term (Tlet (T.mk_id "f", H.mk_tid "result", forall)) in 
   let full_term = multiple_args term (List.tl a) in
-  let post = Loc.dummy_position, [T.mk_pattern (Pvar (T.mk_id "result")), full_term] in   
-  let kont_type = List.fold_left 
-      (fun acc t -> PTtyapp(Qident(T.mk_id "lambda"), [t; acc]))
-      (PTtyapp(Qident (T.mk_id "lambda"), [List.hd t; ret_type])) (List.tl t) in 
-      let value = 
-        mk_expr (
-          Eany([Loc.dummy_position, None, false, PTtuple[]], Expr.RKnone, 
-              Some kont_type ,T.mk_pattern Pwild, Ity.MaskVisible, {empty_spec with sp_post = [post]})
-        ) in 
+  let post = Loc.dummy_position, [T.mk_pattern (Pvar (T.mk_id "result")), full_term] in  *)
+
+  let kont_type =
+    let rec mk_kont_type types =  
+      match types with 
+      |[t] -> PTtyapp(Qident (T.mk_id "lambda"), [t;ret_type])
+      |t1::xs -> 
+        PTtyapp(Qident(T.mk_id "lambda"), [t1; mk_kont_type xs])
+      |_ -> assert false in
+    mk_kont_type arg_types in 
+  let value = 
+    mk_expr (
+      Eany([Loc.dummy_position, None, false, PTtuple[]], Expr.RKnone, 
+          Some kont_type ,T.mk_pattern Pwild, Ity.MaskVisible, {empty_spec with sp_post = post_list})
+    ) in 
   let lambda = 
       Elet(T.mk_id "h", false, Expr.RKnone, value, 
         mk_expr (Eapply (mk_expr (Eident (Qident (T.mk_id "h"))), mk_expr (Etuple []))))
@@ -950,15 +1011,20 @@ let effect_branch (k, case) =
     let q = (longident ~id_loc:(T.location id.loc) id.txt) in
     let pat = T.mk_pattern (Ptree.Ptuple (List.map pattern l)) in 
     q, pat
+  |Ppat_construct(id, Some ([], ({ppat_desc=Ppat_var _;_} as p))) ->
+    let q = (longident ~id_loc:(T.location id.loc) id.txt) in
+    let pat = T.mk_pattern (Ptree.Ptuple [pattern p]) in 
+    let pat = T.mk_pattern (Ptree.Pas (pat, H.mk_id "req", true)) in
+    q, pat
   |Ppat_construct(id, Some ([], p)) -> 
     let q = (longident ~id_loc:(T.location id.loc) id.txt) in
     let pat = pattern p in 
     q, pat
-  |_ -> failwith "invalid case" in
+  |_ -> failwith "invalid effect branch" in
   let eff_name = match q with |Qident id -> id.id_str |_ -> assert false in 
     
   let eff_type = Effect.get_effect_type eff_name in 
-  let ret = T.pty spec.sp_returns in 
+  let ret = T.defun_type (T.pty spec.sp_returns) in 
 
   (*function that creates the continuation*)
   let kont_type = Some (PTtyapp(Qident(T.mk_id "continuation"), [eff_type; ret])) in 
