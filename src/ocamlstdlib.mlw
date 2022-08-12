@@ -31,6 +31,8 @@ module Stdlib_fun
 
   type state
 
+  val _state : state
+
   meta coercion function k
 
   predicate pre (lambda 'a 'b) 'a state

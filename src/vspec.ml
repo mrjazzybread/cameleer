@@ -67,15 +67,22 @@ let empty_spec =
 let vspec spec =
   let sp_writes = List.map (T.term false) spec.Uast.sp_writes in
   let sp_checkrw = match sp_writes with [] -> false | _ -> true in
+  let sp_performs = function
+        |Uast.Qpreid id -> 
+          Helper.dummy_loc, [Qident (Helper.mk_id id.pid_str), None]
+        |_ -> assert false in      
   let sp_post =
     match spec.Uast.sp_header with
     | None -> List.map sp_post_no_ret spec.sp_post
     | Some hd -> List.map (sp_post hd.sp_hd_ret) spec.sp_post
   in
+  Printf.printf "%d\n" (List.length (spec.sp_performs));
   {
     sp_pre = List.map (T.term false) spec.Uast.sp_pre;
     sp_post;
-    sp_xpost = List.map sp_xpost spec.sp_xpost;
+    sp_xpost = 
+      (List.map sp_xpost spec.sp_xpost)@
+      (List.map sp_performs spec.sp_performs);
     sp_reads = [];
     sp_writes;
     sp_alias = [];

@@ -393,7 +393,7 @@ let mk_param id t =
   Loc.dummy_position, Some id, false, t
 
 
-(** Checks if a decleration is an effect decleration. As of OCaml 5.0.0, the only way to do this is by
+(** Checks if a declaration is an effect declaration. As of OCaml 5.0.0, the only way to do this is by
     extending the {!eff} type.   
 
     @param d the top level declaration which we will add to either the left or right list 
@@ -469,7 +469,15 @@ let setup_protocol prot =
   let _perform_post =
     T.mk_fcall [mk_tid post_name; mk_tid (T.mk_id "request"); mk_state_term true; mk_state_term false; mk_tid (T.mk_id "result")]
      in
-  let spec = Vspec.mk_spec pre_terms post_terms (List.map (fun s -> mk_tid (T.preid s)) prot.pro_writes) in 
+  let modified = 
+    List.map 
+      (fun Identifier.Preid.{pid_str;_} -> pid_str ) 
+      prot.pro_writes in 
+  Effect.add_mod_vars p_name modified;
+  let spec = Vspec.mk_spec pre_terms post_terms 
+  (List.map (fun s -> mk_tid (T.preid s)) prot.pro_writes) in 
+  let raises = H.dummy_loc, [Qident (H.mk_id p_name), None] in 
+  let spec = {spec with sp_xpost=[raises]} in
   let protocol_perfrom = Eany (
       [effect_param], Expr.RKnone, Some t, T.mk_pattern Pwild, Ity.MaskVisible, spec) in   
   let perform_decl = 
@@ -566,6 +574,7 @@ let s_structure, s_signature =
     | Sig_ghost_open _ -> assert false
   (* TODO *)
   and s_structure_item info Uast.{ sstr_desc; sstr_loc } =
+    let _ = Effect.reset () in
     s_structure_item_desc info (T.location sstr_loc) sstr_desc
   and s_structure_item_desc info loc str_item_desc =
     let _is_const_svb Uast.{ spvb_expr; _ } =

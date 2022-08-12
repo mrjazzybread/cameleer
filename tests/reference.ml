@@ -14,23 +14,24 @@ type _ Effect.t += Set : int -> unit Effect.t
     modifies r*)
 
 
-let set n = perform (Set n)
+let set (n : int) : unit = perform (Set n)
 (*@ ensures n = !r
-    modifies r*)
+    performs Set*)
 
-let get () = perform Get
-(*@ ensures result = !r *)
+
+let get () : int = perform Get
+(*@ ensures result = !r
+    performs Get *)
 
 (*@ predicate fun_post (old_r : int) (r : int) (result : int) =
     result = r * r && r = old_r * 2*)
 
+
 let some_fun () : int = 
-    
     set(get () + get ()); get() * get()
 (*@ ensures fun_post (old !r) !r result
     performs Get
-    performs Set
-    modifies r *)
+    performs Set*)
 
 
 let f = 
@@ -44,30 +45,27 @@ let f =
             match e with
             |Set n -> 
                 Some (fun (k : (a, _) continuation) ->
-                    fun (_ : int) : int -> 
+                    fun 
+                    [@gospel {|
+                        requires !va
+                        ensures true |}]
+                    (_ : int) : int -> 
                         r:= n;
                         let env : int -> int = continue k () in
                         let ret = env n in 
-                 va := false; ret)
+                        va := false; ret)
             |Get -> 
                 Some (fun (k : (a, _) continuation)  ->
-                    fun (n : int) : int -> 
+                    fun 
+                    [@gospel {|
+                        requires !va && !r = n
+                    |}]
+                    (n : int) : int -> 
                         let env : int -> int = continue k n in
                         let ret = env n in
-                 va := false; ret)
+                        va := false; ret)
             |_ -> None)
     }
-    (*@ try_ensures !va 
+    (*@ try_ensures !va
         try_ensures forall arg state. state._va && state._r = arg -> pre result arg state 
-        try_ensures 
-            let g = result in 
-            forall arg state_old state result.
-            post g arg state_old state result -> q (old !r) state._r result
         returns int -> int*)
-    (*try_ensures !v
-    try_ensures forall arg state. state._v && state._r = arg -> pre result arg state 
-    try_ensures r = old !r
-    try_ensures let f = result in 
-      forall arg state_old state result.
-      post f arg state_old state result ->
-        fun_post state_old._r state.r result && not state.v*)

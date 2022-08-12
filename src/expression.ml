@@ -10,16 +10,6 @@ module S = Vspec
 module P = Parsetree
 module Set = Stdlib.Set.Make(String)
 
-let performed_effects : ((Set.t) ref) = ref Set.empty
-
-let add_effect e =
-  performed_effects := Set.add e (!performed_effects)
-
-let reset () = 
-  performed_effects := Set.empty
-
-let get_effects ()  = Set.elements (!performed_effects)
-
 let rec string_of_longident = function
   | Longident.Lident s -> s
   | Ldot (t, s) -> string_of_longident t ^ s
@@ -74,7 +64,6 @@ let mk_pas ?(ghost = false) pat id = Pas (pat, id, ghost)
 let mk_expr ?(expr_loc = T.dummy_loc) expr_desc = { expr_desc; expr_loc }
 
 let mk_fun_def ghost rs_kind (id, fun_expr) =
-  reset ();
   let args, ret, spec, expr =
     match fun_expr.expr_desc with
     | Efun (args, _, ret, _, spec, expr) -> (args, ret, spec, expr)
@@ -234,9 +223,18 @@ let create_dummy args pty ret spec effs =
             |_ -> assert false) args in
   let pty = match pty with |Some pty -> pty |_ -> assert false in
   let eff_post = gen_eff_post effs in 
+  let modified_vars = 
+    List.map 
+      (fun q -> match q with Qident id -> Effect.get_modified_vars id.id_str |_ -> assert false) effs in
+  let modified_vars = List.flatten modified_vars in
+  let modified_vars = List.map H.mk_tid modified_vars in 
   Eany(args, Expr.RKnone,
      Some pty, ret, Ity.MaskVisible, 
-     {spec with sp_xpost = eff_post@spec.sp_xpost; sp_variant = []})
+     {spec with 
+      sp_xpost = eff_post@spec.sp_xpost; 
+      sp_variant = []; 
+      sp_writes=modified_vars}
+    )
 
 let rec pattern info P.({ ppat_desc; _ } as pat) =
   match ppat_desc with
@@ -634,6 +632,9 @@ let rec expression_desc info expr_loc expr_desc =
     | Uast.Sexp_ident { txt = Lident "raise"; _ } -> true
     | _ -> false
   in
+  let is_deref = function 
+    | Uast.Sexp_ident {txt = Lident ":=";_ } -> true 
+    | _ -> false in 
 
   match expr_desc with
   | Uast.Sexp_ident { txt; loc } ->
@@ -662,7 +663,7 @@ let rec expression_desc info expr_loc expr_desc =
     begin 
       match e.Uast.spexp_desc with 
       |Uast.Sexp_construct ({txt = Lident s;_}, arg) -> 
-        add_effect s;
+        Effect.use_effect s;
         let p = Eident (Qident (T.mk_id ("perform_"^s))) in 
         let arg = begin match arg with 
           |None -> mk_expr (Etuple [])
@@ -679,13 +680,25 @@ let rec expression_desc info expr_loc expr_desc =
   | Uast.Sexp_apply (s, [ arg ]) when is_not s.spexp_desc -> Enot (arg_expr arg)
   | Uast.Sexp_apply (s, [ (_, arg) ]) when is_raise s.spexp_desc ->
       apply_raise info arg.spexp_desc
-  | Uast.Sexp_apply ({ spexp_desc = Sexp_ident s; _ }, arg_expr_list) ->
+  | Uast.Sexp_apply (s, [ (_, id); (_, exp)]) when is_deref s.spexp_desc ->
+    let id_str = 
+        match id.spexp_desc with
+        |Sexp_ident id -> 
+          string_of_longident id.txt
+        |_ -> assert false 
+        in 
+      Effect.use_var id_str;
+      Eidapp (Qident (H.mk_id "infix :="), [expression info id; expression info exp])
+  | Uast.Sexp_apply ({ spexp_desc = Sexp_ident s; _ }, arg_expr_list) ->   
       let id_loc = T.location s.loc in
       let txt = if s.txt = Lident "continue" then Lident "contin" else s.txt in
       let defun = 
         (*if this function identifier doesn't represent a defunctionalized lambda,
             this variable will be None*)
-        match s.txt with |Lident x when Effect.is_defun x -> Some x | _ -> None in 
+        match s.txt with 
+        |Lident x when Effect.is_defun x -> Some x 
+        |Lident x -> Effect.call_function x; None
+        | _ -> None in 
       let args = (List.map arg_expr arg_expr_list) in 
       begin
       match defun with  
@@ -699,7 +712,7 @@ let rec expression_desc info expr_loc expr_desc =
   | Uast.Sexp_apply (expr, arg_expr_list) ->
       (*let mk_app acc (_, e) = mk_expr (Eapply (acc, expression info e)) in
       let e_acc = expression info expr in
-      (List.fold_left mk_app e_acc arg_expr_list).expr_desc *)
+      (List.fold_left mk_app e_acc S).expr_desc *)
       let rec mk_apply e el =
         match el with 
         |[] -> e 
@@ -793,17 +806,22 @@ and defun info expr spec =
   (*Function to retrieve the function's arguments and their types. Also gets 
      the function's return type and the body. All types must be explictly annotated*)
   let rec args f = 
+
     match f with 
     |Uast.Sexp_fun(_, _, 
     {ppat_desc=Ppat_constraint({ppat_desc;_}, t);_}, e, _) -> 
       let v = 
         match ppat_desc with 
         |Ppat_var v -> v.txt 
-        |Ppat_any -> "NONE" 
+        |Ppat_any -> "_none" 
+          (*To simplify the code, wildcard arguments are given names *) 
         |_ -> assert false in 
       let args, v_types, r, e = args e.Uast.spexp_desc in  
         v::args, (core_type t)::v_types, r, e 
-    |Uast.Sexp_constraint(e, core) -> [], [], core_type core, expression info e
+    |Uast.Sexp_constraint(e, core) -> 
+      let env = Effect.reset () in 
+      let ret = [], [], core_type core, expression info e in 
+      Effect.reload env; ret
     |_ -> assert false in 
   
     
@@ -848,51 +866,6 @@ and defun info expr spec =
   let post_list = List.map (fun p -> apply_arguments args false (H.term_of_post p)) spec.sp_post in 
   let term_list = term_list@post_list in
   let post_list = List.map (fun p -> Loc.dummy_position, [T.mk_pattern (Pvar (H.mk_id "result")), p]) term_list in 
-  
-  
-
-  (*
-  let final_arg = List.hd a in 
-  let post_app = Effect.mk_post_term final_arg in (*post f arg old_state state result*)
-  let pre_app = Effect.mk_pre_term final_arg in (*pre f arg state *)
-  let post_term =  (H.fold_terms (List.map H.term_of_post spec.sp_post)) in (*Q1 && Q2 && ...*)
-  let pre_term = H.fold_terms spec.sp_pre in (*P1 && P2 && ...*)
-  let post = H.mk_equiv post_app post_term in (*post f ... <-> Q1...*)
-  let pre = H.mk_equiv pre_app pre_term in (*pre f ...* <-> P1 ... *)
-  let forall = H.mk_term (
-    Tquant(
-      Why3.Dterm.DTforall,
-      List.map (fun x -> Loc.dummy_position, Some (H.mk_id x), false, None) [final_arg;"old_state"; "state"; "result"], 
-      [], H.mk_and pre post)) in 
-  
-  (*Given a function with multiple arguments, creates a term
-     {!let f = result in forall arg1 result. post f arg1 result <-> 
-      let f = result in forall arg2 result. post f arg2 result <-> ...}
-      @param term 
-      @param l list of arguments *)
-  let rec multiple_args term l =
-    let mk_binder n = Loc.dummy_position, Some (H.mk_id n), false, None in 
-    match l with 
-    |[] -> term 
-    |arg::t ->    
-    let post = H.mk_equiv
-        (Effect.mk_post_term arg) 
-        term in
-    let pre = Effect.mk_pre_term arg in 
-    let term = H.mk_and pre post in
-    let binders = 
-      [mk_binder arg; mk_binder "old_state"; mk_binder "state"; mk_binder "result"] in
-    let term =
-      H.mk_term (Tquant (
-        Why3.Dterm.DTforall, binders, [], term
-      )) in 
-    let term = H.mk_term (
-      Tlet(H.mk_id "f", H.mk_tid "result", term)) in 
-      multiple_args term t in
-  
-  let term = H.mk_term (Tlet (T.mk_id "f", H.mk_tid "result", forall)) in 
-  let full_term = multiple_args term (List.tl a) in
-  let post = Loc.dummy_position, [T.mk_pattern (Pvar (T.mk_id "result")), full_term] in  *)
 
   let kont_type =
     let rec mk_kont_type types =  
@@ -921,6 +894,9 @@ and defun info expr spec =
     Simply put, we transform every branch into an exception branch, 
     each branch will have defined a continuation with the same postcondition as the handler
     and the same precondition as the corresponding protocol.
+
+    This handler will then be wrapped in a function that receives unit that will have the
+    same postconditions as the GOSPEL program. This function will then be immediately called
     
     @param try_exp the expression which may perform effect
     @param cases each branch in the handler
@@ -972,7 +948,9 @@ let gen_kont_spec eff_name ret pconds =
   let kont_post = 
     H.mk_term (Tlet(H.mk_id "old_state", H.mk_tid "init_state", kont_post)) in
   let post_cond = 
-    H.mk_term (Tbinnop(post_call, iff, kont_post)) in 
+    H.mk_term (Tbinnop(post_call, Why3.Dterm.DTimplies, kont_post)) in 
+  
+
 
   let quant_post = 
     Tquant(Why3.Dterm.DTforall, post_binders, [], post_cond) in 
@@ -982,26 +960,43 @@ let gen_kont_spec eff_name ret pconds =
   let valid = T.mk_fcall [H.mk_tid "valid"; H.mk_tid "result"] in 
   let postcondition = (Tlet (H.mk_id "f", f_term, H.mk_term quant_post)) in
   let precondition = (Tlet (H.mk_id "f", f_term, H.mk_term quant_pre)) in
+  let conditions = [mk_post valid;
+  mk_post (H.mk_term postcondition);
+  mk_post (H.mk_term precondition) ] in  
+  let unused = Effect.get_unused_vars() in 
+  let mk_equal t1 t2 = 
+    T.mk_term (Tidapp(Qident (H.mk_id "infix ="), [t1;t2])) in
+  let old = (H.mk_tid "_old_state") in 
+  let s = (H.mk_tid "state") in
+  let state_term = 
+    if unused = [] 
+      then [] 
+    else if List.length conditions = List.length unused 
+      then [mk_equal old s]
+    else 
+      List.map (fun vname -> 
+        let vt = H.mk_tid ("_"^vname) in 
+      mk_equal (T.mk_term (Tapply(vt, old))) (T.mk_term(Tapply(vt, s)))) unused in  
+  let state_cond = 
+    List.map (fun t -> 
+      let quant = Tquant(Why3.Dterm.DTforall, post_binders, [], t) in
+      T.mk_term (Tlet (H.mk_id "f", f_term, H.mk_term quant))) state_term in  
+  let state_cond = 
+    List.map H.mk_why_post state_cond in
   {Vspec.empty_spec with 
-      sp_post = 
-        [mk_post valid;
-         mk_post (H.mk_term postcondition);
-         mk_post (H.mk_term precondition) ] }in 
+      sp_post = conditions@state_cond }in 
 
 (* Translates a single branch of the effect handler
     The handler will be translated almost verbatim with the only notable differences being in 
     the creation of the continuation: This will be done using a function that returns a 
     continuation with the proper specification.
 
-    This handler will then be wrapped in a function that receives unit that will have the
-    same postconditions as the GOSPEL program. This function will then be immediately called
     @param k the name of the continuation
     @param case the branch we will translate*)
-let effect_branch (k, case) = 
-  let exp = expression info case.Uast.spc_rhs in 
+let effect_branch (k, pat, exp) = 
   let pattern p = match pattern info p with | {pat_term=Some p;_} -> p |_ -> assert false in 
   let q, pat = 
-  match case.spc_lhs.ppat_desc with 
+  match pat.ppat_desc with 
   |Ppat_construct(id, None) -> 
     let q = (longident ~id_loc:(T.location id.loc) id.txt) in
     let pat = T.mk_pattern (Ptree.Ptuple []) in
@@ -1021,6 +1016,9 @@ let effect_branch (k, case) =
     let pat = pattern p in 
     q, pat
   |_ -> failwith "invalid effect branch" in
+  let () = match q with 
+  |Qident x -> Effect.handle_effect x.id_str
+  |_ -> assert false in 
   let eff_name = match q with |Qident id -> id.id_str |_ -> assert false in 
     
   let eff_type = Effect.get_effect_type eff_name in 
@@ -1041,7 +1039,9 @@ let effect_branch (k, case) =
   (q, Some pat, Effect.state_exp "eff_state" (H.mk_expr exp)) in 
 let unit_binder = Loc.dummy_position, None, false, Some (PTtuple[]) in 
 let handler_spec = 
-  {Vspec.empty_spec with sp_post = List.map (fun x -> mk_post (T.term true x)) spec.sp_handle_post}  in 
+  {Vspec.empty_spec with sp_post = List.map (fun x -> mk_post (T.term true x)) spec.sp_handle_post}  in
+let cases = List.map (fun (k, case) -> 
+  (k, case.Uast.spc_lhs, expression info case.Uast.spc_rhs)) cases in
 let m = (Ematch (try_exp, [], List.map effect_branch cases)) in 
 let exp = Effect.state_exp "init_state" (H.mk_expr m) in 
 let f = Efun([unit_binder], None, T.mk_pattern Pwild, Ity.MaskVisible, handler_spec, exp) in Eapply (mk_expr f, mk_expr (Etuple []))
@@ -1206,7 +1206,7 @@ and s_value_binding info svb =
         (* TODO? Should we ignore the spec that comes with [Sexp_fun]? *)
         let arg, binder_info = binder_of_pattern info pat in
         let binder_list, expr, pty = loop (arg :: acc) e in
-        (binder_list, special_binder expr binder_info, pty)
+        binder_list, special_binder expr binder_info, pty
     | Sexp_function case_list ->
         let param_id = T.mk_id "param" in
         let param = mk_expr (Eident (Qident param_id)) ~expr_loc:T.dummy_loc in
@@ -1215,8 +1215,9 @@ and s_value_binding info svb =
         let ematch = mk_ematch param reg_branch exn_branch in
         let expr_loc = T.location expr.spexp_loc in
         (List.rev (arg :: acc), mk_expr ematch ~expr_loc, None)
-    | Sexp_constraint(e, ty) -> (List.rev acc, expression info e, Some (T.defun_type (core_type ty)))
-    | _ -> (List.rev acc, expression info expr, None)
+    | Sexp_constraint(e, ty) -> 
+      (List.rev acc, expression info e, Some (T.defun_type (core_type ty)))
+    | _ -> List.rev acc, expression info expr, None
   in
   (* TODO *)
   let mk_svb_expr expr  =
@@ -1254,8 +1255,35 @@ and s_value_binding info svb =
         let expr = mk_expr ~expr_loc (Elabel (old_id, expr)) in
         let args, expr = subst_args_expr args expr spec_uast in
         let ret = T.mk_pattern Pwild in
-        let p = match svb.spvb_vspec with |None -> [] | Some x -> x.sp_performs in
-        let p = List.map T.qualid p in 
+        let listed_perform = match svb.spvb_vspec with |None -> [] | Some x -> x.sp_performs in 
+        let unlisted = 
+          List.find_map 
+          (fun x -> 
+            match x with 
+            |Qpreid {pid_str; _} -> 
+              begin match Set.find_opt pid_str !Effect.performed_effects with 
+              |Some _ -> None 
+              |None -> Some pid_str end  
+            |_ -> assert false)
+            listed_perform in 
+        if unlisted <> None 
+          then failwith ("This effect is not performed: " ^ (Option.get unlisted)) 
+        else 
+        let not_performed = 
+          List.find_map 
+          (fun x -> 
+            if List.exists (fun y -> 
+            match y with 
+            |Qpreid {pid_str; _} ->  pid_str = x 
+            |_ -> assert false) 
+              listed_perform then 
+                None else Some x
+          )
+            (Set.elements !Effect.performed_effects) in 
+            if not_performed <> None 
+          then failwith ("This effect is not listed in a performs clause: " ^ (Option.get not_performed))
+          else
+        let p = List.map T.qualid listed_perform in 
         let spec = spec svb.Uast.spvb_vspec in
         let efun = Efun (args, pty, ret, Ity.MaskVisible, spec, expr) in 
         let efun = mk_expr efun ~expr_loc in 
@@ -1279,4 +1307,5 @@ and s_value_binding info svb =
   let id = id_of_pat svb.spvb_pat in
   let exp, dummy =  mk_svb_expr pexp in 
   Effect.flush_fun_types ();
+  Effect.save_env id.id_str;
   id, exp, dummy 

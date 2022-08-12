@@ -3,67 +3,20 @@
 "http://why3.lri.fr/why3session.dtd">
 <why3session shape_version="6">
 <prover id="0" name="Alt-Ergo" version="2.2.0" timelimit="5" steplimit="0" memlimit="1000"/>
-<file format="ocaml">
+<file format="ocaml" proved="true">
 <path name=".."/><path name="reference.ml"/>
 <theory name="Reference">
- <goal name="set&#39;vc" expl="VC for set" proved="true">
+ <goal name="vc1&#39;vc" expl="VC for vc1">
  <proof prover="0"><result status="valid" time="0.01" steps="4"/></proof>
  </goal>
- <goal name="get&#39;vc" expl="VC for get" proved="true">
- <proof prover="0"><result status="valid" time="0.03" steps="2"/></proof>
+ <goal name="vc2&#39;vc" expl="VC for vc2">
+ <proof prover="0"><result status="valid" time="0.01" steps="2"/></proof>
  </goal>
- <goal name="vc1&#39;vc" expl="VC for vc1" proved="true">
+ <goal name="vc3&#39;vc" expl="VC for vc3">
  <proof prover="0"><result status="valid" time="0.02" steps="6"/></proof>
  </goal>
  <goal name="f&#39;vc" expl="VC for f">
- <proof prover="0"><result status="unknown" time="0.16"/></proof>
- <transf name="split_vc" >
-  <goal name="f&#39;vc.0" expl="postcondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.01" steps="6"/></proof>
-  </goal>
-  <goal name="f&#39;vc.1" expl="postcondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.03" steps="12"/></proof>
-  </goal>
-  <goal name="f&#39;vc.2" expl="postcondition">
-  <proof prover="0"><result status="unknown" time="0.15"/></proof>
-  </goal>
-  <goal name="f&#39;vc.3" expl="precondition">
-  <proof prover="0"><result status="unknown" time="0.14"/></proof>
-  </goal>
-  <goal name="f&#39;vc.4" expl="precondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.01" steps="10"/></proof>
-  </goal>
-  <goal name="f&#39;vc.5" expl="precondition">
-  <proof prover="0"><result status="unknown" time="0.16"/></proof>
-  </goal>
-  <goal name="f&#39;vc.6" expl="postcondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.01" steps="14"/></proof>
-  </goal>
-  <goal name="f&#39;vc.7" expl="postcondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.01" steps="20"/></proof>
-  </goal>
-  <goal name="f&#39;vc.8" expl="postcondition">
-  <proof prover="0"><result status="unknown" time="0.14"/></proof>
-  </goal>
-  <goal name="f&#39;vc.9" expl="precondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.01" steps="15"/></proof>
-  </goal>
-  <goal name="f&#39;vc.10" expl="precondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.01" steps="10"/></proof>
-  </goal>
-  <goal name="f&#39;vc.11" expl="precondition">
-  <proof prover="0"><result status="unknown" time="0.14"/></proof>
-  </goal>
-  <goal name="f&#39;vc.12" expl="postcondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.01" steps="14"/></proof>
-  </goal>
-  <goal name="f&#39;vc.13" expl="postcondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.01" steps="20"/></proof>
-  </goal>
-  <goal name="f&#39;vc.14" expl="postcondition">
-  <proof prover="0"><result status="unknown" time="0.13"/></proof>
-  </goal>
- </transf>
+ <proof prover="0"><result status="valid" time="0.20" steps="750"/></proof>
  </goal>
 </theory>
 </file>

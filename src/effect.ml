@@ -1,9 +1,16 @@
 
+(*The functions and state variables are only used for the verification of higher order programs 
+  as well as programs with algebraic effects.*)
+
 module Map = Map.Make(String)
+module Set = Set.Make(String)
 module T = Uterm
 module H = Helper
 open Why3
 open Ptree
+
+type env = Set.t * Set.t 
+
 let exn_name = "exn"
 
 let vc = 
@@ -11,23 +18,71 @@ let vc =
   fun () -> n_vcs := !n_vcs + 1; "vc" ^ (string_of_int (!n_vcs))
 
 (**auxiliary variables and functions to map effect names to the types they return*)
-let effect_types : (pty Map.t) ref = ref Map.empty
+let effect_types : ((pty * string list) Map.t) ref = ref Map.empty
 
 let tl_ref_types : (pty Map.t) ref = ref Map.empty
 
 let arg_fun_types : (pty Map.t) ref = ref Map.empty
 
+let fun_env : (env Map.t) ref = ref Map.empty
+
+let used_state = ref Set.empty
+
+let performed_effects = ref Set.empty 
+
 let effect_terms : ((term list * term list) Map.t) ref = ref Map.empty
 
+let save_env f = 
+  fun_env := Map.add f (!used_state, !performed_effects) !fun_env 
+
+let call_function f = 
+  try let s, p = Map.find f !fun_env in 
+  used_state := Set.union s !used_state;
+  performed_effects := Set.union p !performed_effects 
+with |Not_found -> ()
+
+let handle_effect f =
+  try 
+   let _ = Set.find f !performed_effects in 
+   performed_effects := Set.remove f !performed_effects with
+  |Not_found -> failwith ("this expression doesn't perform this effect : " ^ f) 
 let map_terms e pre post =
   effect_terms := Map.add e (pre, post) !effect_terms  
 
 let map_effect e t =
-  effect_types := Map.add e t (!effect_types)
+  effect_types := Map.add e (t, []) (!effect_types)
 
+let get_mod_vars e =
+  let _, l = Map.find e !effect_types in l
+
+let add_mod_vars e vars =
+  let t, _ = Map.find e !effect_types in 
+  effect_types := Map.add e (t, vars) !effect_types   
+
+let use_effect s =
+  performed_effects := Set.add s (!performed_effects)
+
+let use_var s =
+  used_state := Set.add s (!used_state)
+
+let get_unused_vars () =
+  Set.iter print_endline !used_state;
+  Set.elements (
+    Set.diff 
+    (Set.of_list (List.map fst (Map.bindings !tl_ref_types)))
+    (!used_state) 
+  )
+
+let reset () =
+  let env = !used_state, !performed_effects in
+  used_state := Set.empty;
+  performed_effects := Set.empty; env
+
+let reload (state, effects) =
+  used_state := state; 
+  performed_effects := effects  
 
 let map_ref_type r t =
-  print_endline r;
   let t = 
     match t with 
     |PTtyapp(Qident id, l) -> PTtyapp(Qident({id with id_loc = Why3.Loc.dummy_position}), l)
@@ -50,7 +105,10 @@ let get_ref_type r =
   Map.find r (!tl_ref_types)
 
 let get_effect_type e = 
-  Map.find e (!effect_types)
+  let t, _ = Map.find e (!effect_types) in t
+
+let get_modified_vars e =
+  let _, l = Map.find e (!effect_types) in l
 
 let get_state_type () =
   let seq = Map.to_seq !tl_ref_types in
@@ -76,6 +134,7 @@ let mk_state_term is_old =
     let t = T.mk_term (Tapply (bang, id)) in 
     let t = if is_old then T.mk_term (Tat(t, T.mk_id "'Old")) else t in 
     Qident (H.mk_id ("_" ^ s)), t) seq) in 
+  if tl = [] then H.mk_tid "_state" else
   T.mk_term (Trecord tl)
 
 (* Given a term {!t} creates a new term term

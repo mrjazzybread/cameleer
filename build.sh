@@ -1,1 +1,1 @@
-dune build && dune install && cameleer --debug tests/reference.ml 
+dune build && dune install && cameleer --debug tests/length.ml 

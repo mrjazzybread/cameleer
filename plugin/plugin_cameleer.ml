@@ -114,8 +114,9 @@ let apply state_term is_kont =
   let arg_arg = mk_param ~name:(Some "arg") (List.hd params) in 
   let args = [cont_arg; arg_arg] in 
   let kont_term = 
-    if is_kont then T.mk_fcall [term_of_string "k"; term_of_string "f"]
-    else term_of_string "f" in 
+    if is_kont
+      then T.mk_fcall [term_of_string "k"; term_of_string "f"]
+      else term_of_string "f" in 
   let arg_term = term_of_string "arg" in 
   let result_term = term_of_string "result" in 
   let old_state = H.mk_term (Tat(state_term, H.mk_id Dexpr.old_label)) in 
@@ -144,17 +145,17 @@ let use_std_lib ref_decls types refs =
   let stdlib_fun = Qdot (Qident (T.mk_id "ocamlstdlib"), T.mk_id "Stdlib_fun") in
   let ref_types = Seq.map (fun (id, pty) -> mk_field ("_" ^ id) pty false true) refs in 
   let state_term = Effect.mk_state_term false in 
-
+  let ref_list = List.of_seq ref_types in 
   let state_type_decl = 
     {
       td_loc = Loc.dummy_position;
       td_ident = H.mk_id "_state";
       td_params = [];
-      td_vis = Public;
+      td_vis = if ref_list = [] then Abstract else Public;
       td_mut = false;
       td_inv = [];
       td_wit = None;
-      td_def = TDrecord(List.of_seq ref_types)
+      td_def = TDrecord ref_list
     }  in 
   let state_decl = Odecl.mk_dtype Loc.dummy_position [state_type_decl]  in
   let imports = 
@@ -166,6 +167,7 @@ let use_std_lib ref_decls types refs =
       CStsym ( Qident (T.mk_id "exn"), [], PTtyapp(Qident(T.mk_id "exn"), []));
       CSprop ( Decl.Paxiom ) ]
   in
+  
   [imports]@ types @ ref_decls @[
   state_decl;
   use_stdlib;
