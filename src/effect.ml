@@ -113,7 +113,7 @@ let get_modified_vars e =
 let get_state_type () =
   let seq = Map.to_seq !tl_ref_types in
   let _ptyl = List.of_seq (Seq.map (fun (_, pty) -> pty) seq) in
-  PTtyapp(Qident (H.mk_id "_state"), [])
+  PTtyapp(Qident (H.mk_id "state"), [])
 
 let writes_clause () = 
   let seq = Map.to_seq !tl_ref_types in 
@@ -188,7 +188,7 @@ let mk_pre_term arg_name =
 let mk_post_binders arg = 
   List.map 
     (fun x -> (Loc.dummy_position, Some (H.mk_id x), false, None))
-    [arg; "state_old"; "state"; "result"]
+    [arg; "old_state"; "state"; "result"]
 
 let mk_pre_binders arg = 
   List.map 

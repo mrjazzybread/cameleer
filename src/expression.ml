@@ -134,6 +134,7 @@ let rec longident ?(id_loc = T.dummy_loc) ?(prefix = "") = function
 (* TODO *)
 
 let rec core_type P.{ ptyp_desc; ptyp_loc; _ } =
+  let ret = 
   match ptyp_desc with
   | Ptyp_any -> assert false (* TODO *)
   | P.Ptyp_var s -> mk_pttyvar T.(mk_id ~id_loc:(location ptyp_loc) s)
@@ -151,7 +152,7 @@ let rec core_type P.{ ptyp_desc; ptyp_loc; _ } =
   | Ptyp_variant _ -> assert false (* TODO *)
   | Ptyp_poly (_, t) -> core_type t (* TODO *)
   | Ptyp_package _ -> assert false (* TODO *)
-  | Ptyp_extension _ -> assert false
+  | Ptyp_extension _ -> assert false in T.defun_type ret
 (* TODO *)
 
 let rec id_of_pat P.{ ppat_desc; _ } =
@@ -194,8 +195,8 @@ let gen_eff_post effs=
   List.map (fun eff -> 
       match eff with 
       |Qident id -> 
-        let v = T.mk_pattern (Pvar(T.mk_id "v")) in 
-        let v_term = T.mk_term (Tident (Qident (T.mk_id "v"))) in
+        let v = T.mk_pattern (Pvar(T.mk_id "_v")) in 
+        let v_term = T.mk_term (Tident (Qident (T.mk_id "_v"))) in
         let pre_name = Qident (T.mk_id ("pre_" ^ id.id_str)) in 
         let pre_term = T.mk_term (Tident pre_name) in 
         let state_term = Effect.mk_state_term false in 
@@ -373,7 +374,7 @@ let binder_of_pattern =
         let id = T.(mk_id s.txt ~id_loc:(location s.loc)) in
         let pty = T.defun_type (core_type cty) in 
         Effect.map_arg_type s.txt pty;
-        let pty = Some pty in
+        let pty = Some (T.defun_type pty) in
         (binder id ppat_loc ppat_attributes pty, mk_binder_info_none)
     | Ppat_constraint _ -> assert false (* TODO *)
     | Ppat_type _ -> assert false (* TODO *)
@@ -657,8 +658,11 @@ let rec expression_desc info expr_loc expr_desc =
       mk_erec (List.map (mk_fun_def false rs_kind) id_fun_expr_list) expr_in
   | Uast.Sexp_function _ -> assert false (* TODO *)
   | Uast.Sexp_fun (Nolabel, None, _, _, spec) ->
-      let spec = match spec with Some s -> S.fun_spec s | _ -> empty_spec in
-      defun info expr_desc spec
+      let fun_spec, vc_spec = 
+        match spec with 
+        Some s -> S.fun_spec ~in_pred:true s, S.fun_spec s 
+        | _ -> empty_spec, empty_spec in
+      defun info expr_desc fun_spec vc_spec
   | Uast.Sexp_apply (s, [_,e]) when is_perform s -> 
     begin 
       match e.Uast.spexp_desc with 
@@ -802,22 +806,26 @@ let rec expression_desc info expr_loc expr_desc =
   | Sexp_letop _ -> assert false
 (* TODO *)
 
-and defun info expr spec = 
+and defun info expr fun_spec vc_spec = 
   (*Function to retrieve the function's arguments and their types. Also gets 
      the function's return type and the body. All types must be explictly annotated*)
   let rec args f = 
 
     match f with 
-    |Uast.Sexp_fun(_, _, 
-    {ppat_desc=Ppat_constraint({ppat_desc;_}, t);_}, e, _) -> 
-      let v = 
-        match ppat_desc with 
-        |Ppat_var v -> v.txt 
-        |Ppat_any -> "_none" 
-          (*To simplify the code, wildcard arguments are given names *) 
-        |_ -> assert false in 
+    |Uast.Sexp_fun(_, _, arg, e, _) -> 
+      let v, t = 
+        match arg.ppat_desc with 
+        |Ppat_constraint(p, t) ->
+          begin match p.ppat_desc with 
+          |Ppat_var v -> v.txt, core_type t 
+          |Ppat_any -> "_none", core_type t
+            (*To simplify the code, wildcard arguments are given names *) 
+          |_ -> assert false end 
+        |Ppat_construct({txt=Lident "()"; _}, None) -> "_none", PTtuple []
+        |_ -> assert false
+          in
       let args, v_types, r, e = args e.Uast.spexp_desc in  
-        v::args, (core_type t)::v_types, r, e 
+        v::args, t::v_types, r, e 
     |Uast.Sexp_constraint(e, core) -> 
       let env = Effect.reset () in 
       let ret = [], [], core_type core, expression info e in 
@@ -862,17 +870,19 @@ and defun info expr spec =
       |_-> assert false in 
     T.mk_term (Tlet (H.mk_id "f", H.mk_tid "result", T.mk_term term)) in
   let term_list = if List.length args > 2 then [valid_curry (List.length args)] else [] in 
-  let term_list = (apply_arguments args true (H.fold_terms spec.sp_pre))::term_list in 
-  let post_list = List.map (fun p -> apply_arguments args false (H.term_of_post p)) spec.sp_post in 
+  let term_list = (apply_arguments args true (H.fold_terms fun_spec.sp_pre))::term_list in 
+  let post_list = List.map (fun p -> apply_arguments args false (H.term_of_post p)) fun_spec.sp_post in 
   let term_list = term_list@post_list in
   let post_list = List.map (fun p -> Loc.dummy_position, [T.mk_pattern (Pvar (H.mk_id "result")), p]) term_list in 
 
   let kont_type =
+    let lambda_type t1 t2 = 
+      PTtyapp (Qident (H.mk_id "lambda"), [t1;t2]) in 
     let rec mk_kont_type types =  
       match types with 
-      |[t] -> PTtyapp(Qident (T.mk_id "lambda"), [t;ret_type])
+      |[t] -> lambda_type t ret_type
       |t1::xs -> 
-        PTtyapp(Qident(T.mk_id "lambda"), [t1; mk_kont_type xs])
+        lambda_type t1 (mk_kont_type xs)
       |_ -> assert false in
     mk_kont_type arg_types in 
   let value = 
@@ -886,7 +896,7 @@ and defun info expr spec =
   in  
     let vc = 
       Efun(List.map2 (fun v t -> Loc.dummy_position, Some (H.mk_id v), false, Some t) args arg_types, 
-           Some ret_type, T.mk_pattern Pwild, Ity.MaskVisible, spec, f_e) in 
+           Some ret_type, T.mk_pattern Pwild, Ity.MaskVisible, vc_spec, f_e) in 
   Elet(H.mk_id "vc",false, Expr.RKnone, mk_expr vc, mk_expr lambda)
   
 
@@ -979,7 +989,8 @@ let gen_kont_spec eff_name ret pconds =
       mk_equal (T.mk_term (Tapply(vt, old))) (T.mk_term(Tapply(vt, s)))) unused in  
   let state_cond = 
     List.map (fun t -> 
-      let quant = Tquant(Why3.Dterm.DTforall, post_binders, [], t) in
+      let t = Tbinnop(post_call ,Why3.Dterm.DTimplies, t) in 
+      let quant = Tquant(Why3.Dterm.DTforall, post_binders, [], T.mk_term t) in
       T.mk_term (Tlet (H.mk_id "f", f_term, H.mk_term quant))) state_term in  
   let state_cond = 
     List.map H.mk_why_post state_cond in
@@ -1280,8 +1291,10 @@ and s_value_binding info svb =
                 None else Some x
           )
             (Set.elements !Effect.performed_effects) in 
-            if not_performed <> None 
-          then failwith ("This effect is not listed in a performs clause: " ^ (Option.get not_performed))
+            if not_performed <> None
+          then
+            let () = Format.printf "%a\n" Loc.report_position expr_loc in
+            failwith ("This effect is not listed in a performs clause: " ^ (Option.get not_performed))
           else
         let p = List.map T.qualid listed_perform in 
         let spec = spec svb.Uast.spvb_vspec in

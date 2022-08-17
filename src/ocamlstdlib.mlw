@@ -12,12 +12,19 @@ module Stdlib
   use export option.Option
   use export ref.Ref
   use export ref.Refint
-  
+end
+
+module Stdlib_lambda
+
+  type lambda 'a 'b
+  type continuation 'a 'b = {ghost k : lambda 'a 'b; ghost mutable valid : bool}
+
 end
 
 module Stdlib_fun
 
   use export Stdlib
+  use import Stdlib_lambda
 
   let invalid_arg (s: string)
     raises  { Invalid_argument }
@@ -25,9 +32,6 @@ module Stdlib_fun
   = raise (Invalid_argument s)
 
   type exn
-
-  type lambda 'a 'b
-  type continuation 'a 'b = {ghost k : lambda 'a 'b; ghost mutable valid : bool}
 
   type state
 
@@ -238,7 +242,7 @@ end
 module Map
 
   use map.Map, set.Fset
-  use Stdlib, Stdlib_fun
+  use Stdlib_fun
 
   scope Make
 
@@ -267,7 +271,7 @@ end
 module Array
   use int.Int
   use seq.Seq
-  use Stdlib, Stdlib_fun
+  use Stdlib_fun
 
   (* scope import MyArray *)
 
@@ -373,7 +377,7 @@ module Numof
   use array.NumOfEq
   use import int.NumOf as N
 
-  use Stdlib, Stdlib_fun
+  use Stdlib_fun
 
   function numof (a: Array.my_array 'a) (v: 'a) (l u: int) : int =
     N.numof (fun i -> (Array.([]) a i) = v) l u

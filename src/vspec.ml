@@ -37,10 +37,10 @@ let sp_post sp_hd_ret sp_post =
   in
   (term_loc, [ (pat, T.term true sp_post) ])
 
-let sp_post_no_ret sp_post =
+let sp_post_no_ret ?(in_pred=false) sp_post =
   let term_loc = T.location sp_post.Uast.term_loc in
   let id_result = T.mk_id "result" in
-  (term_loc, [ (T.mk_pattern (Pvar id_result), T.term true sp_post) ])
+  (term_loc, [ (T.mk_pattern (Pvar id_result), T.term true ~in_pred sp_post) ])
 
 (** Converts a GOSPEL exception postcondition into a Why3's Ptree [xpost]. The
     two data types have the same structure, hence this is a morphism. *)
@@ -76,7 +76,6 @@ let vspec spec =
     | None -> List.map sp_post_no_ret spec.sp_post
     | Some hd -> List.map (sp_post hd.sp_hd_ret) spec.sp_post
   in
-  Printf.printf "%d\n" (List.length (spec.sp_performs));
   {
     sp_pre = List.map (T.term false) spec.Uast.sp_pre;
     sp_post;
@@ -106,11 +105,11 @@ let mk_spec pre post w =
     sp_partial = false;
   }
 
-let fun_spec spec =
+let fun_spec ?(in_pred = false) spec =
   {
-    sp_pre = List.map (T.term false) spec.Uast.fun_req;
-    sp_post = List.map sp_post_no_ret spec.fun_ens;
-    sp_xpost = [] (* TODO: cannot be done with [fun_spec] argument *);
+    sp_pre = List.map (T.term ~in_pred false) spec.Uast.fun_req;
+    sp_post = List.map (sp_post_no_ret ~in_pred) spec.fun_ens; 
+    sp_xpost = List.map (fun x -> Helper.dummy_loc, [T.qualid x, None]) spec.fun_performs (* This is martelado *);
     sp_reads = [];
     sp_writes = [];
     sp_alias = [];

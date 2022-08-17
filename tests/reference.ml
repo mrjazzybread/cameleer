@@ -1,5 +1,5 @@
 open Effect
-open Effect.Deep
+open Effect.Deep 
 let r : int ref = ref 0
 let va : bool ref = ref true
 
@@ -38,8 +38,9 @@ let f =
   try_with 
     (fun () -> 
         va := true; 
-        let r = some_fun() in 
-        (fun (_ : int) : int -> r)) ()
+        let ret = some_fun() in 
+        let final_r = !r in 
+        (fun [@gospel {| ensures fun_post init_state._r final_r result && final_r = !r |}] (_ : int) : int -> r:=final_r; ret)) ()
     {effc = 
         (fun (type a) (e : a Effect.t) -> 
             match e with
@@ -48,7 +49,7 @@ let f =
                     fun 
                     [@gospel {|
                         requires !va
-                        ensures true |}]
+                        ensures fun_post init_state._r !r result |}]
                     (_ : int) : int -> 
                         r:= n;
                         let env : int -> int = continue k () in
@@ -59,6 +60,7 @@ let f =
                     fun 
                     [@gospel {|
                         requires !va && !r = n
+                        ensures fun_post init_state._r !r result
                     |}]
                     (n : int) : int -> 
                         let env : int -> int = continue k n in
@@ -67,5 +69,10 @@ let f =
             |_ -> None)
     }
     (*@ try_ensures !va
-        try_ensures forall arg state. state._va && state._r = arg -> pre result arg state 
+        try_ensures forall arg state. 
+            state._va && state._r = arg -> pre result arg state
+        try_ensures let g = result in  
+            forall arg state_old state result. 
+            post g arg state_old state result -> 
+                fun_post (old !r) state._r result
         returns int -> int*)

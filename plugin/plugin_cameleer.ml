@@ -142,6 +142,7 @@ let apply state_term is_kont =
 let use_std_lib ref_decls types refs =
   let dummy_pos = Loc.dummy_position in
   let stdlib = Qdot (Qident (T.mk_id "ocamlstdlib"), T.mk_id "Stdlib") in
+  let stdlib_types = Qdot (Qident (T.mk_id "ocamlstdlib"), T.mk_id "Stdlib_lambda") in
   let stdlib_fun = Qdot (Qident (T.mk_id "ocamlstdlib"), T.mk_id "Stdlib_fun") in
   let ref_types = Seq.map (fun (id, pty) -> mk_field ("_" ^ id) pty false true) refs in 
   let state_term = Effect.mk_state_term false in 
@@ -149,7 +150,7 @@ let use_std_lib ref_decls types refs =
   let state_type_decl = 
     {
       td_loc = Loc.dummy_position;
-      td_ident = H.mk_id "_state";
+      td_ident = H.mk_id "state";
       td_params = [];
       td_vis = if ref_list = [] then Abstract else Public;
       td_mut = false;
@@ -163,14 +164,14 @@ let use_std_lib ref_decls types refs =
   in
   let use_stdlib =
     Odecl.mk_cloneexport stdlib_fun
-     [CStsym ( Qident (T.mk_id "state"), [], PTtyapp(Qident (H.mk_id "_state"), []));
+     [CStsym ( Qident (T.mk_id "state"), [], PTtyapp(Qident (H.mk_id "state"), []));
       CStsym ( Qident (T.mk_id "exn"), [], PTtyapp(Qident(T.mk_id "exn"), []));
       CSprop ( Decl.Paxiom ) ]
   in
+  let fun_types =
+    Odecl.mk_duseimport Loc.dummy_position [stdlib_types, None] in 
   
-  [imports]@ types @ ref_decls @[
-  state_decl;
-  use_stdlib;
+  [imports; fun_types; state_decl; use_stdlib]@ types @ ref_decls @[
   Odecl.mk_odecl dummy_pos (apply state_term true);
   Odecl.mk_odecl dummy_pos (apply state_term false);
   ]

@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE why3session PUBLIC "-//Why3//proof session v5//EN"
+"http://why3.lri.fr/why3session.dtd">
+<why3session shape_version="6">
+<prover id="0" name="Z3" version="4.8.14" timelimit="5" steplimit="0" memlimit="1000"/>
+<prover id="1" name="Alt-Ergo" version="2.2.0" timelimit="5" steplimit="0" memlimit="1000"/>
+<prover id="2" name="Z3" version="4.8.14" alternative="noBV" timelimit="5" steplimit="0" memlimit="1000"/>
+<file format="ocaml">
+<path name=".."/><path name="iterator.ml"/>
+<theory name="Iterator">
+ <goal name="gen&#39;vc" expl="VC for gen">
+ </goal>
+ <goal name="vc11&#39;vc" expl="VC for vc11">
+ </goal>
+ <goal name="a&#39;vc" expl="VC for a" proved="true">
+ <proof prover="0" obsolete="true"><result status="timeout" time="5.00"/></proof>
+ <proof prover="1" obsolete="true"><result status="unknown" time="0.61"/></proof>
+ <transf name="split_vc" proved="true" >
+  <goal name="a&#39;vc.0" expl="precondition" proved="true">
+  <proof prover="1"><result status="valid" time="0.03" steps="4"/></proof>
+  <transf name="smoke_detector_deep" >
+   <goal name="a&#39;vc.0.0" expl="VC for a">
+   <proof prover="0"><result status="timeout" time="5.00"/></proof>
+   <proof prover="1"><result status="unknown" time="0.15"/></proof>
+   </goal>
+  </transf>
+  </goal>
+  <goal name="a&#39;vc.1" expl="precondition" proved="true">
+  <proof prover="1"><result status="valid" time="0.03" steps="6"/></proof>
+  <transf name="smoke_detector_deep" >
+   <goal name="a&#39;vc.1.0" expl="VC for a">
+   <proof prover="0"><result status="timeout" time="5.00"/></proof>
+   <proof prover="1"><result status="unknown" time="0.15"/></proof>
+   </goal>
+  </transf>
+  </goal>
+  <goal name="a&#39;vc.2" expl="postcondition" proved="true">
+  <proof prover="1"><result status="valid" time="0.02" steps="6"/></proof>
+  <transf name="smoke_detector_deep" >
+   <goal name="a&#39;vc.2.0" expl="VC for a">
+   <proof prover="0"><result status="timeout" time="5.00"/></proof>
+   <proof prover="1"><result status="unknown" time="0.13"/></proof>
+   </goal>
+  </transf>
+  </goal>
+  <goal name="a&#39;vc.3" expl="postcondition" proved="true">
+  <proof prover="1"><result status="valid" time="0.02" steps="6"/></proof>
+  <transf name="smoke_detector_deep" >
+   <goal name="a&#39;vc.3.0" expl="VC for a">
+   <proof prover="0"><result status="timeout" time="5.00"/></proof>
+   <proof prover="1"><result status="unknown" time="0.12"/></proof>
+   </goal>
+  </transf>
+  </goal>
+  <goal name="a&#39;vc.4" expl="postcondition" proved="true">
+  <proof prover="1"><result status="valid" time="0.03" steps="10"/></proof>
+  <transf name="smoke_detector_deep" >
+   <goal name="a&#39;vc.4.0" expl="VC for a">
+   <proof prover="0"><result status="timeout" time="5.00"/></proof>
+   <proof prover="1"><result status="unknown" time="0.14"/></proof>
+   </goal>
+  </transf>
+  </goal>
+  <goal name="a&#39;vc.5" expl="postcondition" proved="true">
+  <proof prover="1"><result status="valid" time="0.02" steps="10"/></proof>
+  <transf name="smoke_detector_deep" >
+   <goal name="a&#39;vc.5.0" expl="VC for a">
+   <proof prover="0"><result status="timeout" time="5.00"/></proof>
+   <proof prover="1"><result status="unknown" time="0.14"/></proof>
+   </goal>
+  </transf>
+  </goal>
+  <goal name="a&#39;vc.6" expl="precondition" proved="true">
+  <proof prover="0" obsolete="true"><result status="timeout" time="5.00"/></proof>
+  <proof prover="1"><result status="valid" time="0.01" steps="36"/></proof>
+  <transf name="smoke_detector_deep" >
+   <goal name="a&#39;vc.6.0" expl="VC for a">
+   <proof prover="0"><result status="timeout" time="5.00"/></proof>
+   <proof prover="1"><result status="unknown" time="0.22"/></proof>
+   </goal>
+  </transf>
+  </goal>
+  <goal name="a&#39;vc.7" expl="precondition" proved="true">
+  <proof prover="0" obsolete="true"><result status="valid" time="0.05" steps="137745"/></proof>
+  <proof prover="1"><result status="valid" time="0.03" steps="14"/></proof>
+  <transf name="smoke_detector_deep" >
+   <goal name="a&#39;vc.7.0" expl="VC for a">
+   <proof prover="0"><result status="timeout" time="5.00"/></proof>
+   <proof prover="1"><result status="unknown" time="0.19"/></proof>
+   </goal>
+  </transf>
+  <transf name="split_vc" >
+   <goal name="a&#39;vc.7.0" expl="precondition">
+   <proof prover="1" obsolete="true"><result status="valid" time="0.02" steps="20"/></proof>
+   </goal>
+  </transf>
+  </goal>
+  <goal name="a&#39;vc.8" expl="postcondition" proved="true">
+  <proof prover="0" obsolete="true"><result status="timeout" time="5.00"/></proof>
+  <proof prover="1"><result status="valid" time="0.02" steps="82"/></proof>
+  <proof prover="2" obsolete="true"><result status="timeout" time="5.00"/></proof>
+  <transf name="smoke_detector_deep" >
+   <goal name="a&#39;vc.8.0" expl="VC for a">
+   <proof prover="1"><result status="unknown" time="0.19"/></proof>
+   </goal>
+  </transf>
+  <transf name="split_vc" >
+   <goal name="a&#39;vc.8.0" expl="postcondition">
+   <proof prover="0" obsolete="true"><result status="timeout" time="5.00"/></proof>
+   <proof prover="1" obsolete="true"><result status="unknown" time="0.20"/></proof>
+   </goal>
+  </transf>
+  </goal>
+  <goal name="a&#39;vc.9" expl="postcondition" proved="true">
+  <proof prover="1"><result status="valid" time="0.01" steps="8"/></proof>
+  <transf name="smoke_detector_deep" >
+   <goal name="a&#39;vc.9.0" expl="VC for a">
+   <proof prover="0"><result status="timeout" time="5.00"/></proof>
+   <proof prover="1"><result status="unknown" time="0.14"/></proof>
+   </goal>
+  </transf>
+  </goal>
+  <goal name="a&#39;vc.10" expl="postcondition" proved="true">
+  <proof prover="1"><result status="valid" time="0.02" steps="12"/></proof>
+  <transf name="smoke_detector_deep" >
+   <goal name="a&#39;vc.10.0" expl="VC for a">
+   <proof prover="1"><result status="unknown" time="0.14"/></proof>
+   </goal>
+  </transf>
+  </goal>
+  <goal name="a&#39;vc.11" expl="postcondition" proved="true">
+  <proof prover="0" obsolete="true"><result status="timeout" time="5.00"/></proof>
+  <proof prover="1"><result status="valid" time="0.03" steps="12"/></proof>
+  <transf name="smoke_detector_deep" >
+   <goal name="a&#39;vc.11.0" expl="VC for a">
+   <proof prover="0"><result status="timeout" time="5.00"/></proof>
+   <proof prover="1"><result status="unknown" time="0.13"/></proof>
+   </goal>
+  </transf>
+  </goal>
+ </transf>
+ </goal>
+</theory>
+</file>
+</why3session>

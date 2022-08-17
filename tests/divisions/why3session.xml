@@ -2,12 +2,25 @@
 <!DOCTYPE why3session PUBLIC "-//Why3//proof session v5//EN"
 "http://why3.lri.fr/why3session.dtd">
 <why3session shape_version="6">
-<file format="ocaml">
+<prover id="0" name="Alt-Ergo" version="2.2.0" timelimit="5" steplimit="0" memlimit="1000"/>
+<file format="ocaml" proved="true">
 <path name=".."/><path name="divisions.ml"/>
-<theory name="Divisions">
- <goal name="vc1&#39;vc" expl="VC for vc1">
+<theory name="Divisions" proved="true">
+ <goal name="vc1&#39;vc" expl="VC for vc1" proved="true">
+ <proof prover="0"><result status="valid" time="0.02" steps="114"/></proof>
  </goal>
- <goal name="main&#39;vc" expl="VC for main">
+ <goal name="main&#39;vc" expl="VC for main" proved="true">
+ <proof prover="0"><result status="valid" time="0.01" steps="43"/></proof>
+ <transf name="smoke_detector_deep" >
+  <goal name="main&#39;vc.0" expl="VC for main">
+  <proof prover="0"><result status="unknown" time="0.16"/></proof>
+  </goal>
+ </transf>
+ <transf name="smoke_detector_top" >
+  <goal name="main&#39;vc.0" expl="VC for main">
+  <proof prover="0"><result status="unknown" time="0.16"/></proof>
+  </goal>
+ </transf>
  </goal>
 </theory>
 </file>

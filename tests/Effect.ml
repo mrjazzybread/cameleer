@@ -15,10 +15,6 @@ let perform _ = failwith ""
 
 let continue _ _ = failwith ""
 
-let discontinue _ _ = failwith ""
-
-let match_with _ _ _ = failwith ""
-
 let try_with _ _ _ = failwith ""
 
 end
