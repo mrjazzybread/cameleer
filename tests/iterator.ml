@@ -2,7 +2,7 @@ open Effect
 open Effect.Deep
 
 let l : (int list) ref = ref []
-let v : bool ref = ref true
+let v : (unit -> int option) ref = ref (fun () : int option -> None)
 
 let gen : (unit -> int option) ref = ref (fun () : int option -> None)
 
@@ -21,10 +21,10 @@ axiom iter_inv1 :
 (*@  
 axiom iter_inv2 :
   forall state_old state r. (
-    next state_old._l r && state._l = r::state_old._l && state._v &&
+    next state_old._l r && state._l = r::state_old._l && state._v = state._gen &&
       forall state_old1 state1 result. 
       (post state._gen () state_old1 state1 result -> iter_inv state_old1 state1 result) &&
-      (state_old1._v -> pre state._gen () state_old1)
+      (state_old1._v = state._gen -> pre state._gen () state_old1)
       
       ) <-> iter_inv state_old state (Some r)
 *)
@@ -50,21 +50,21 @@ let a =
     
     gen := 
       (fun [@gospel {|ensures iter_inv {_l = old !l; _v = old !v; _gen = old !gen} {_l = !l; _v = !v; _gen = !gen} result|}] 
-        () : int option -> None) ; v:=true) ()
+        () : int option -> None) ; v := !gen) ()
   {effc = 
     fun (type a) (e : a Effect.t) ->
       match e with 
       | Yield x -> Some
         (fun (k : (a, _ ) continuation) -> 
-            v:= true;
             gen := 
               (fun [@gospel {|
-              requires !v
               ensures iter_inv {_l = old !l; _v = old !v; _gen = old !gen} {_l = !l; _v = !v; _gen = !gen}  result|}] 
-              () : int option ->  v:=false; l := x::!l;  continue k ();  Some x) )
+              () : int option -> l := x::!l;  continue k (); Some x);
+              v := !gen )
+            
       |_ -> None
   }
-  (*@ try_ensures !v
-      try_ensures forall arg s. s._v -> pre !gen arg s
+  (*@ try_ensures !v = !gen
+      try_ensures forall arg s. s._v = !gen -> pre !gen arg s
       try_ensures  
         forall s_old s result. post !gen () s_old s result -> iter_inv s_old s result*)
