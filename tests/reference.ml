@@ -34,45 +34,42 @@ let some_fun () : int =
     performs Set*)
 
 
-let f = 
+
+  let f : int -> int = 
   try_with 
-    (fun () -> 
-        va := true; 
+    (fun () ->  
         let ret = some_fun() in 
         let final_r = !r in 
-        (fun [@gospel {| ensures fun_post init_state._r final_r result && final_r = !r |}] (_ : int) : int -> r:=final_r; ret)) ()
+        (fun [@gospel {| ensures fun_post init_state._r final_r result && !r = final_r|}] (_ : int) : int -> r:= final_r; ret)) ()
     {effc = 
         (fun (type a) (e : a Effect.t) -> 
             match e with
             |Set n -> 
                 Some (fun (k : (a, _) continuation) ->
                     fun 
-                    [@gospel {|
-                        requires !va
+                    [@gospel {| requires !va
                         ensures fun_post init_state._r !r result |}]
                     (_ : int) : int -> 
-                        r:= n;
+                        r := n;
                         let env : int -> int = continue k () in
-                        let ret = env n in 
-                        va := false; ret)
+                        env n)
             |Get -> 
                 Some (fun (k : (a, _) continuation)  ->
                     fun 
                     [@gospel {|
-                        requires !va && !r = n
+                        requires !r = n && !va
                         ensures fun_post init_state._r !r result
                     |}]
                     (n : int) : int -> 
                         let env : int -> int = continue k n in
-                        let ret = env n in
-                        va := false; ret)
+                        env n)
             |_ -> None)
     }
-    (*@ try_ensures !va
+    (*@
         try_ensures forall arg state. 
             state._va && state._r = arg -> pre result arg state
         try_ensures let g = result in  
             forall arg state_old state result. 
-            post g arg state_old state result -> 
+            post g arg state_old state result ->
                 fun_post (old !r) state._r result
-        returns int -> int*)
+        returns int -> int *)

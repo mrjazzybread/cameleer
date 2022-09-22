@@ -171,7 +171,7 @@ let use_std_lib ref_decls types refs =
   let fun_types =
     Odecl.mk_duseimport Loc.dummy_position [stdlib_types, None] in 
   
-  [imports; fun_types; state_decl; use_stdlib]@ types @ ref_decls @[
+  [imports; fun_types] @ types @ [state_decl; use_stdlib] @ ref_decls @[
   Odecl.mk_odecl dummy_pos (apply state_term true);
   Odecl.mk_odecl dummy_pos (apply state_term false);
   ]

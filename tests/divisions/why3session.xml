@@ -7,18 +7,43 @@
 <path name=".."/><path name="divisions.ml"/>
 <theory name="Divisions" proved="true">
  <goal name="vc1&#39;vc" expl="VC for vc1" proved="true">
- <proof prover="0"><result status="valid" time="0.02" steps="114"/></proof>
- </goal>
- <goal name="main&#39;vc" expl="VC for main" proved="true">
- <proof prover="0"><result status="valid" time="0.01" steps="43"/></proof>
- <transf name="smoke_detector_deep" >
-  <goal name="main&#39;vc.0" expl="VC for main">
-  <proof prover="0"><result status="unknown" time="0.16"/></proof>
+ <transf name="split_vc" proved="true" >
+  <goal name="vc1&#39;vc.0" expl="postcondition" proved="true">
+  <proof prover="0"><result status="valid" time="0.03" steps="8"/></proof>
+  </goal>
+  <goal name="vc1&#39;vc.1" expl="variant decrease" proved="true">
+  <proof prover="0"><result status="valid" time="0.01" steps="42"/></proof>
+  </goal>
+  <goal name="vc1&#39;vc.2" expl="variant decrease" proved="true">
+  <proof prover="0"><result status="valid" time="0.01" steps="44"/></proof>
+  </goal>
+  <goal name="vc1&#39;vc.3" expl="precondition" proved="true">
+  <proof prover="0"><result status="valid" time="0.02" steps="54"/></proof>
+  </goal>
+  <goal name="vc1&#39;vc.4" expl="postcondition" proved="true">
+  <proof prover="0"><result status="valid" time="0.01" steps="18"/></proof>
+  </goal>
+  <goal name="vc1&#39;vc.5" expl="check division by zero" proved="true">
+  <proof prover="0"><result status="valid" time="0.01" steps="14"/></proof>
+  </goal>
+  <goal name="vc1&#39;vc.6" expl="postcondition" proved="true">
+  <proof prover="0"><result status="valid" time="0.01" steps="16"/></proof>
   </goal>
  </transf>
- <transf name="smoke_detector_top" >
-  <goal name="main&#39;vc.0" expl="VC for main">
-  <proof prover="0"><result status="unknown" time="0.16"/></proof>
+ </goal>
+ <goal name="main&#39;vc" expl="VC for main" proved="true">
+ <transf name="split_vc" proved="true" >
+  <goal name="main&#39;vc.0" expl="postcondition" proved="true">
+  <proof prover="0"><result status="valid" time="0.01" steps="4"/></proof>
+  </goal>
+  <goal name="main&#39;vc.1" expl="precondition" proved="true">
+  <proof prover="0"><result status="valid" time="0.01" steps="23"/></proof>
+  </goal>
+  <goal name="main&#39;vc.2" expl="precondition" proved="true">
+  <proof prover="0"><result status="valid" time="0.03" steps="10"/></proof>
+  </goal>
+  <goal name="main&#39;vc.3" expl="postcondition" proved="true">
+  <proof prover="0"><result status="valid" time="0.00" steps="16"/></proof>
   </goal>
  </transf>
  </goal>

@@ -788,7 +788,10 @@ let rec expression_desc info expr_loc expr_desc =
   | Sexp_letexception (exn_constructor, expr) ->
       let id, pty, mask = exception_constructor exn_constructor in
       mk_eexn id pty mask (expression info expr)
-  | Sexp_handler(e, cases, spec) -> handler info (expression info e) cases spec
+  | Sexp_handler(e, cases, spec) -> 
+    let env = Effect.reset () in 
+    let exp = handler info (expression info e) cases spec in 
+    Effect.reload env; exp
   | Sexp_coerce _ -> assert false (* TODO *)
   | Sexp_send _ -> assert false (* TODO *)
   | Sexp_new _ -> assert false (* TODO *)

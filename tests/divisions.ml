@@ -24,6 +24,11 @@ match exp with
    modifies curr_exp
   *)
 
+(*@ predicate has_zero (e : exp) =
+   match e with 
+   |Const _ -> false
+   |Div l r -> eval_ind r = 0 || has_zero r || has_zero l*)
+
 let rec eval (e : exp) : int = 
    match e with 
    |Const n -> curr_exp:=e; n 
@@ -49,5 +54,5 @@ let main exp =
      |Div_by_zero -> Some (fun (k : (a,_) continuation) -> 
       curr_exp := Const 1000; continue k 1000) 
      |_ -> None } 
-   (*@   try_ensures eval_ind (!curr_exp) = result 
-         returns int *)
+(*@try_ensures eval_ind (!curr_exp) = result 
+      returns int *)
