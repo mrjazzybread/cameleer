@@ -35,5 +35,5 @@ conflicts: [
 ]
 
 pin-depends: [
-  "gospel.dev" "git+https://github.com/ocaml-gospel/gospel.git#33218db330e9e54aefe213f0f9385abc5deae8bf"
+  "gospel.dev" "git+https://github.com/ocaml-gospel/gospel.git#2dd6fc285cb3420f572c59f998946fa03b962532"
 ]
