@@ -6,38 +6,28 @@
 <file format="ocaml" proved="true">
 <path name=".."/><path name="xchg.ml"/>
 <theory name="Xchg" proved="true">
- <goal name="vc2&#39;vc" expl="VC for vc2" proved="true">
+ <goal name="vc3&#39;vc" expl="VC for vc3" proved="true">
  <proof prover="0"><result status="valid" time="0.02" steps="2"/></proof>
  <transf name="split_vc" proved="true" >
-  <goal name="vc2&#39;vc.0" expl="postcondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.03" steps="6"/></proof>
+  <goal name="vc3&#39;vc.0" expl="postcondition" proved="true">
+  <proof prover="0"><result status="valid" time="0.02" steps="6"/></proof>
   </goal>
  </transf>
  </goal>
  <goal name="a&#39;vc" expl="VC for a" proved="true">
- <proof prover="0"><result status="valid" time="0.01" steps="30"/></proof>
- <transf name="smoke_detector_deep" >
-  <goal name="a&#39;vc.0" expl="VC for a">
-  <proof prover="0"><result status="unknown" time="0.12"/></proof>
-  </goal>
- </transf>
- <transf name="smoke_detector_top" >
-  <goal name="a&#39;vc.0" expl="VC for a">
-  <proof prover="0"><result status="unknown" time="0.12"/></proof>
-  </goal>
- </transf>
+ <proof prover="0" obsolete="true"><result status="valid" time="0.01" steps="30"/></proof>
  <transf name="split_vc" proved="true" >
   <goal name="a&#39;vc.0" expl="postcondition" proved="true">
   <proof prover="0"><result status="valid" time="0.02" steps="6"/></proof>
   </goal>
   <goal name="a&#39;vc.1" expl="precondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.01" steps="13"/></proof>
+  <proof prover="0"><result status="valid" time="0.03" steps="13"/></proof>
   </goal>
   <goal name="a&#39;vc.2" expl="precondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.01" steps="8"/></proof>
+  <proof prover="0"><result status="valid" time="0.02" steps="8"/></proof>
   </goal>
   <goal name="a&#39;vc.3" expl="postcondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.03" steps="15"/></proof>
+  <proof prover="0"><result status="valid" time="0.02" steps="15"/></proof>
   </goal>
  </transf>
  </goal>

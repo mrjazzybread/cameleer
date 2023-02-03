@@ -15,7 +15,7 @@ let xchg (x : int) : int =
     performs XCHG *)
 
 let a = 
-  try_with (fun x -> xchg x) 3 
+  try_with xchg (xchg 3) 
   {effc = 
   (fun (type a) (e : a Effect.t) -> 
       match e with
@@ -24,5 +24,5 @@ let a =
         p := n;
         continue k old_p))
       |_ -> None)} 
-  (*@ try_ensures !p = 3 && result = old !p
+  (*@ try_ensures !p = old !p && result = 3
       returns int*)
