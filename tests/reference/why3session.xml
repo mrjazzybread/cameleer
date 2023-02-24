@@ -2,62 +2,148 @@
 <!DOCTYPE why3session PUBLIC "-//Why3//proof session v5//EN"
 "http://why3.lri.fr/why3session.dtd">
 <why3session shape_version="6">
-<prover id="0" name="Alt-Ergo" version="2.2.0" timelimit="5" steplimit="0" memlimit="1000"/>
-<file format="ocaml">
+<prover id="1" name="Alt-Ergo" version="2.4.2" timelimit="5" steplimit="0" memlimit="1000"/>
+<file format="ocaml" proved="true">
 <path name=".."/><path name="reference.ml"/>
-<theory name="Reference">
- <goal name="vc16&#39;vc" expl="VC for vc16">
+<theory name="Reference" proved="true">
+ <goal name="vc1&#39;vc" expl="VC for vc1" proved="true">
+ <transf name="split_vc" proved="true" >
+  <goal name="vc1&#39;vc.0" expl="postcondition" proved="true">
+  <transf name="split_vc" proved="true" >
+   <goal name="vc1&#39;vc.0.0" expl="postcondition" proved="true">
+   <proof prover="1"><result status="valid" time="0.01" steps="6"/></proof>
+   </goal>
+  </transf>
+  </goal>
+ </transf>
  </goal>
- <goal name="vc17&#39;vc" expl="VC for vc17">
+ <goal name="vc2&#39;vc" expl="VC for vc2" proved="true">
+ <transf name="split_vc" proved="true" >
+  <goal name="vc2&#39;vc.0" expl="postcondition" proved="true">
+  <transf name="split_vc" proved="true" >
+   <goal name="vc2&#39;vc.0.0" expl="postcondition" proved="true">
+   <proof prover="1"><result status="valid" time="0.01" steps="6"/></proof>
+   </goal>
+  </transf>
+  </goal>
+ </transf>
  </goal>
- <goal name="vc18&#39;vc" expl="VC for vc18">
+ <goal name="vc3&#39;vc" expl="VC for vc3" proved="true">
+ <transf name="split_vc" proved="true" >
+  <goal name="vc3&#39;vc.0" expl="postcondition" proved="true">
+  <proof prover="1"><result status="valid" time="0.01" steps="7"/></proof>
+  </goal>
+ </transf>
  </goal>
- <goal name="f&#39;vc" expl="VC for f">
- <transf name="split_vc" >
-  <goal name="f&#39;vc.0" expl="postcondition">
-  <proof prover="0" obsolete="true"><result status="valid" time="0.02" steps="4"/></proof>
+ <goal name="f&#39;vc" expl="VC for f" proved="true">
+ <transf name="split_vc" proved="true" >
+  <goal name="f&#39;vc.0" expl="postcondition" proved="true">
+  <transf name="split_vc" proved="true" >
+   <goal name="f&#39;vc.0.0" expl="postcondition" proved="true">
+   <proof prover="1"><result status="valid" time="0.01" steps="6"/></proof>
+   </goal>
+   <goal name="f&#39;vc.0.1" expl="postcondition" proved="true">
+   <proof prover="1"><result status="valid" time="0.01" steps="6"/></proof>
+   </goal>
+  </transf>
   </goal>
   <goal name="f&#39;vc.1" expl="postcondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.01" steps="10"/></proof>
+  <transf name="split_vc" proved="true" >
+   <goal name="f&#39;vc.1.0" expl="postcondition" proved="true">
+   <proof prover="1"><result status="valid" time="0.01" steps="14"/></proof>
+   </goal>
+  </transf>
   </goal>
   <goal name="f&#39;vc.2" expl="postcondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.01" steps="8"/></proof>
+  <transf name="split_vc" proved="true" >
+   <goal name="f&#39;vc.2.0" expl="postcondition" proved="true">
+   <proof prover="1"><result status="valid" time="0.01" steps="21"/></proof>
+   </goal>
+  </transf>
   </goal>
   <goal name="f&#39;vc.3" expl="precondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.03" steps="15"/></proof>
+  <transf name="split_vc" proved="true" >
+   <goal name="f&#39;vc.3.0" expl="precondition" proved="true">
+   <proof prover="1"><result status="valid" time="0.01" steps="22"/></proof>
+   </goal>
+  </transf>
   </goal>
   <goal name="f&#39;vc.4" expl="precondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.01" steps="12"/></proof>
+  <transf name="split_vc" proved="true" >
+   <goal name="f&#39;vc.4.0" expl="precondition" proved="true">
+   <proof prover="1"><result status="valid" time="0.01" steps="20"/></proof>
+   </goal>
+  </transf>
   </goal>
   <goal name="f&#39;vc.5" expl="precondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.01" steps="28"/></proof>
+  <transf name="split_vc" proved="true" >
+   <goal name="f&#39;vc.5.0" expl="precondition" proved="true">
+   <proof prover="1"><result status="valid" time="0.01" steps="35"/></proof>
+   </goal>
+  </transf>
   </goal>
   <goal name="f&#39;vc.6" expl="postcondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.02" steps="31"/></proof>
+  <transf name="split_vc" proved="true" >
+   <goal name="f&#39;vc.6.0" expl="postcondition" proved="true">
+   <proof prover="1"><result status="valid" time="0.01" steps="41"/></proof>
+   </goal>
+  </transf>
   </goal>
   <goal name="f&#39;vc.7" expl="postcondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.03" steps="18"/></proof>
+  <transf name="split_vc" proved="true" >
+   <goal name="f&#39;vc.7.0" expl="postcondition" proved="true">
+   <proof prover="1"><result status="valid" time="0.01" steps="30"/></proof>
+   </goal>
+  </transf>
   </goal>
   <goal name="f&#39;vc.8" expl="postcondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.01" steps="16"/></proof>
+  <transf name="split_vc" proved="true" >
+   <goal name="f&#39;vc.8.0" expl="postcondition" proved="true">
+   <proof prover="1"><result status="valid" time="0.01" steps="28"/></proof>
+   </goal>
+  </transf>
   </goal>
   <goal name="f&#39;vc.9" expl="precondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.01" steps="15"/></proof>
+  <transf name="split_vc" proved="true" >
+   <goal name="f&#39;vc.9.0" expl="precondition" proved="true">
+   <proof prover="1"><result status="valid" time="0.01" steps="22"/></proof>
+   </goal>
+  </transf>
   </goal>
   <goal name="f&#39;vc.10" expl="precondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.03" steps="10"/></proof>
+  <transf name="split_vc" proved="true" >
+   <goal name="f&#39;vc.10.0" expl="precondition" proved="true">
+   <proof prover="1"><result status="valid" time="0.01" steps="18"/></proof>
+   </goal>
+  </transf>
   </goal>
   <goal name="f&#39;vc.11" expl="precondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.01" steps="26"/></proof>
+  <transf name="split_vc" proved="true" >
+   <goal name="f&#39;vc.11.0" expl="precondition" proved="true">
+   <proof prover="1"><result status="valid" time="0.01" steps="33"/></proof>
+   </goal>
+  </transf>
   </goal>
   <goal name="f&#39;vc.12" expl="postcondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.03" steps="29"/></proof>
+  <transf name="split_vc" proved="true" >
+   <goal name="f&#39;vc.12.0" expl="postcondition" proved="true">
+   <proof prover="1"><result status="valid" time="0.01" steps="41"/></proof>
+   </goal>
+  </transf>
   </goal>
   <goal name="f&#39;vc.13" expl="postcondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.03" steps="18"/></proof>
+  <transf name="split_vc" proved="true" >
+   <goal name="f&#39;vc.13.0" expl="postcondition" proved="true">
+   <proof prover="1"><result status="valid" time="0.01" steps="30"/></proof>
+   </goal>
+  </transf>
   </goal>
   <goal name="f&#39;vc.14" expl="postcondition" proved="true">
-  <proof prover="0"><result status="valid" time="0.01" steps="16"/></proof>
+  <transf name="split_vc" proved="true" >
+   <goal name="f&#39;vc.14.0" expl="postcondition" proved="true">
+   <proof prover="1"><result status="valid" time="0.01" steps="28"/></proof>
+   </goal>
+  </transf>
   </goal>
  </transf>
  </goal>

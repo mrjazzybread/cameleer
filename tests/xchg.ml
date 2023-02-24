@@ -14,15 +14,15 @@ let xchg (x : int) : int =
 (*@ ensures !p = x && result = old !p
     performs XCHG *)
 
-let a =
-  try_with xchg (xchg 3)
-  {effc =
-  (fun (type a) (e : a Effect.t) ->
-      match e with
-      |XCHG n -> (Some (fun (k : (a, _) continuation) ->
-        let old_p = !p in
-        p := n;
-        continue k old_p))
-      |_ -> None)}
-  (*@ try_ensures !p = old !p && result = 3
-      returns int*)
+let server =
+  try_with (fun x -> xchg x) 3
+    {effc =
+       (fun (type a) (e : a Effect.t) ->
+          match e with
+          |XCHG n -> (Some (fun (k : (a, _) continuation) ->
+              let old_p = !p in
+              p := n;
+              continue k old_p))
+          |_ -> None)}
+(*@ try_ensures !p = 3 && result = old !p
+    returns int*)
